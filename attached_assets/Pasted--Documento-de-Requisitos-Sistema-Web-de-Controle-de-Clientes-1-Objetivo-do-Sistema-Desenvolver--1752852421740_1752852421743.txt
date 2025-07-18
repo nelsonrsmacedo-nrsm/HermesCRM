@@ -1,0 +1,94 @@
+📄 Documento de Requisitos — Sistema Web de Controle de Clientes
+1. Objetivo do Sistema
+Desenvolver um sistema web simples que permita o controle de clientes, com funcionalidades de login de usuários, cadastro de novos clientes e consulta aos dados já registrados.
+
+2. Funcionalidades Principais
+2.1. Autenticação (Login)
+Tela de login com campos:
+
+E-mail
+
+Senha
+
+Validação de credenciais no backend
+
+Redirecionamento para a tela principal após login bem-sucedido
+
+Sessão/autenticação mantida até logout manual
+
+2.2. Cadastro de Cliente
+Tela acessível após login
+
+Campos obrigatórios:
+
+Nome completo
+
+E-mail
+
+Campos opcionais:
+
+Telefone
+
+Endereço
+
+Observações
+
+Botão "Salvar"
+
+Validação de dados (e.g., e-mail válido, telefone numérico)
+
+2.3. Consulta/Listagem de Clientes
+Exibição em tabela com:
+
+Nome
+
+E-mail
+
+Telefone
+
+Campo de busca (por nome ou e-mail)
+
+Paginação (caso a quantidade de registros ultrapasse o limite por página)
+
+2.4. Logout
+Botão para sair do sistema e encerrar a sessão
+
+3. Requisitos Funcionais (RF)
+Código	Descrição
+RF01	O sistema deve permitir o login de usuários cadastrados.
+RF02	O sistema deve validar as credenciais do usuário no backend.
+RF03	O sistema deve permitir o cadastro de novos clientes.
+RF04	O sistema deve validar os campos obrigatórios do formulário de cliente.
+RF05	O sistema deve permitir consultar clientes cadastrados por nome ou e-mail.
+RF06	O sistema deve manter a sessão do usuário enquanto estiver logado.
+RF07	O sistema deve permitir logout.
+
+4. Requisitos Não Funcionais (RNF)
+Código	Descrição
+RNF01	O sistema deve ser acessível via navegador (web).
+RNF02	O sistema deve armazenar dados em banco relacional (ex: SQLite ou PostgreSQL).
+RNF03	O sistema deve ter tempo de resposta inferior a 2 segundos por requisição.
+RNF04	O sistema deve ser responsivo (funcionar em desktop e dispositivos móveis).
+RNF05	O sistema deve seguir boas práticas de segurança (criptografia de senha, validação de entrada, etc).
+
+5. Requisitos Técnicos (RT)
+Código	Descrição
+RT01	Backend pode ser implementado em Python (Flask ou Django)
+RT02	Frontend pode ser feito com HTML/CSS/JavaScript ou framework (ex: React)
+RT03	O sistema deve usar autenticação baseada em sessão ou token (ex: JWT)
+RT04	Banco de dados relacional: SQLite (desenvolvimento) / PostgreSQL (produção)
+RT05	Pode ser hospedado em serviços como Heroku, Render, Vercel, etc.
+
+6. Usuários do Sistema
+Administrador: usuário com permissão de login e acesso completo ao sistema (cadastro e consulta)
+
+7. Fluxo Básico de Uso
+Usuário acessa a tela de login
+
+Usuário insere e-mail e senha
+
+Se autenticado, é direcionado à tela principal
+
+Pode cadastrar novos clientes ou consultar os existentes
+
+Pode encerrar sessão com o botão de logout
