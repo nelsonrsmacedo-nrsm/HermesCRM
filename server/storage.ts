@@ -48,10 +48,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getClients(userId: number, search?: string): Promise<Client[]> {
-    let baseQuery = db.select().from(clients).where(eq(clients.userId, userId));
+    let whereCondition = eq(clients.userId, userId);
     
     if (search) {
-      baseQuery = baseQuery.where(
+      whereCondition = and(
+        eq(clients.userId, userId),
         or(
           ilike(clients.name, `%${search}%`),
           ilike(clients.email, `%${search}%`),
@@ -64,7 +65,7 @@ export class DatabaseStorage implements IStorage {
       );
     }
     
-    return baseQuery.orderBy(desc(clients.createdAt));
+    return db.select().from(clients).where(whereCondition).orderBy(desc(clients.createdAt));
   }
 
   async getClient(id: number, userId: number): Promise<Client | undefined> {

@@ -24,6 +24,7 @@ export default function HomePage() {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("clients");
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
 
   const { data: clients = [], isLoading } = useQuery<Client[]>({
     queryKey: ["/api/clients", searchQuery],
@@ -55,6 +56,30 @@ export default function HomePage() {
     onError: (error: Error) => {
       toast({
         title: "Erro ao cadastrar cliente",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateClientMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: number; data: Partial<InsertClient> }) => {
+      const res = await apiRequest("PUT", `/api/clients/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
+      toast({
+        title: "Cliente atualizado!",
+        description: "Cliente foi atualizado com sucesso.",
+      });
+      form.reset();
+      setEditingClient(null);
+      setActiveTab("clients");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao atualizar cliente",
         description: error.message,
         variant: "destructive",
       });
@@ -128,7 +153,64 @@ export default function HomePage() {
   });
 
   const onSubmit = (data: InsertClient) => {
-    createClientMutation.mutate(data);
+    if (editingClient) {
+      updateClientMutation.mutate({ id: editingClient.id, data });
+    } else {
+      createClientMutation.mutate(data);
+    }
+  };
+
+  const handleEditClient = (client: Client) => {
+    setEditingClient(client);
+    form.reset({
+      // Dados Básicos
+      name: client.name || "",
+      clientType: (client.clientType as "PF" | "PJ") || "PF",
+      cpfCnpj: client.cpfCnpj || "",
+      rgIe: client.rgIe || "",
+      birthDate: client.birthDate || "",
+      gender: client.gender || undefined,
+      
+      // Contato
+      email: client.email || "",
+      landlinePhone: client.landlinePhone || "",
+      mobilePhone: client.mobilePhone || "",
+      website: client.website || "",
+      
+      // Endereço
+      zipCode: client.zipCode || "",
+      street: client.street || "",
+      number: client.number || "",
+      complement: client.complement || "",
+      neighborhood: client.neighborhood || "",
+      city: client.city || "",
+      state: client.state || "",
+      country: client.country || "Brasil",
+      
+      // Representante/Contato Principal
+      contactName: client.contactName || "",
+      contactPosition: client.contactPosition || "",
+      contactPhone: client.contactPhone || "",
+      contactEmail: client.contactEmail || "",
+      
+      // Dados Comerciais
+      businessArea: client.businessArea || "",
+      classification: client.classification || "potencial",
+      clientOrigin: client.clientOrigin || "",
+      status: client.status || "ativo",
+      
+      // Observações
+      notes: client.notes || "",
+      preferences: client.preferences || "",
+      serviceHistory: client.serviceHistory || "",
+    });
+    setActiveTab("add");
+  };
+
+  const handleCancelEdit = () => {
+    setEditingClient(null);
+    form.reset();
+    setActiveTab("clients");
   };
 
   const handleDeleteClient = (id: number) => {
@@ -314,7 +396,12 @@ export default function HomePage() {
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex items-center justify-end gap-2">
-                                <Button variant="ghost" size="sm">
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => handleEditClient(client)}
+                                  disabled={updateClientMutation.isPending}
+                                >
                                   <Edit className="h-4 w-4" />
                                 </Button>
                                 <Button
@@ -341,11 +428,23 @@ export default function HomePage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Plus className="h-5 w-5" />
-                  Cadastrar Novo Cliente
+                  {editingClient ? (
+                    <>
+                      <Edit className="h-5 w-5" />
+                      Editar Cliente
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-5 w-5" />
+                      Cadastrar Novo Cliente
+                    </>
+                  )}
                 </CardTitle>
                 <p className="text-sm text-gray-600">
-                  Preencha os dados do cliente. Campos marcados com * são obrigatórios.
+                  {editingClient 
+                    ? "Atualize as informações do cliente. Campos marcados com * são obrigatórios."
+                    : "Preencha os dados do cliente. Campos marcados com * são obrigatórios."
+                  }
                 </p>
               </CardHeader>
               <CardContent>
@@ -875,19 +974,39 @@ export default function HomePage() {
                     </div>
 
                     <div className="flex flex-col sm:flex-row sm:justify-end space-y-3 sm:space-y-0 sm:space-x-3 pt-6 border-t border-gray-200">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => form.reset()}
-                      >
-                        Limpar Formulário
-                      </Button>
-                      <Button
-                        type="submit"
-                        disabled={createClientMutation.isPending}
-                      >
-                        {createClientMutation.isPending ? "Salvando..." : "Salvar Cliente"}
-                      </Button>
+                      {editingClient ? (
+                        <>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleCancelEdit}
+                          >
+                            Cancelar
+                          </Button>
+                          <Button
+                            type="submit"
+                            disabled={updateClientMutation.isPending}
+                          >
+                            {updateClientMutation.isPending ? "Atualizando..." : "Atualizar Cliente"}
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => form.reset()}
+                          >
+                            Limpar Formulário
+                          </Button>
+                          <Button
+                            type="submit"
+                            disabled={createClientMutation.isPending}
+                          >
+                            {createClientMutation.isPending ? "Salvando..." : "Salvar Cliente"}
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </form>
                 </Form>

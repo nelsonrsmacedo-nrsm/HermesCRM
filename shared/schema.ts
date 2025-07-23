@@ -17,7 +17,7 @@ export const clients = pgTable("clients", {
   clientType: text("client_type").notNull().default("PF"), // PF ou PJ
   cpfCnpj: text("cpf_cnpj"),
   rgIe: text("rg_ie"),
-  birthDate: date("birth_date"),
+  birthDate: text("birth_date"),
   gender: text("gender"),
   
   // Contato
