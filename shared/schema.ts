@@ -59,16 +59,7 @@ export const clients = pgTable("clients", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const usersRelations = relations(users, ({ many }) => ({
-  clients: many(clients),
-}));
-
-export const clientsRelations = relations(clients, ({ one }) => ({
-  user: one(users, {
-    fields: [clients.userId],
-    references: [users.id],
-  }),
-}));
+// Removido - será redefinido abaixo com campanhas incluídas
 
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
@@ -123,7 +114,82 @@ export const insertClientSchema = createInsertSchema(clients).omit({
   serviceHistory: z.string().optional(),
 });
 
+// Tabelas para Sistema de Mala Direta
+export const campaigns = pgTable("campaigns", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  type: text("type").notNull(), // 'email' ou 'whatsapp'
+  subject: text("subject"), // Assunto para email
+  message: text("message").notNull(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const campaignAttachments = pgTable("campaign_attachments", {
+  id: serial("id").primaryKey(),
+  campaignId: integer("campaign_id").notNull().references(() => campaigns.id),
+  fileName: text("file_name").notNull(),
+  filePath: text("file_path").notNull(),
+  fileSize: integer("file_size").notNull(),
+  mimeType: text("mime_type").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const campaignSends = pgTable("campaign_sends", {
+  id: serial("id").primaryKey(),
+  campaignId: integer("campaign_id").notNull().references(() => campaigns.id),
+  clientId: integer("client_id").notNull().references(() => clients.id),
+  recipient: text("recipient").notNull(), // email ou telefone
+  status: text("status").notNull().default("pending"), // pending, sent, failed
+  sentAt: timestamp("sent_at"),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Relações completas do sistema
+export const usersRelations = relations(users, ({ many }) => ({
+  clients: many(clients),
+  campaigns: many(campaigns),
+}));
+
+export const clientsRelations = relations(clients, ({ one }) => ({
+  user: one(users, { fields: [clients.userId], references: [users.id] }),
+}));
+
+export const campaignsRelations = relations(campaigns, ({ one, many }) => ({
+  user: one(users, { fields: [campaigns.userId], references: [users.id] }),
+  attachments: many(campaignAttachments),
+  sends: many(campaignSends),
+}));
+
+export const campaignAttachmentsRelations = relations(campaignAttachments, ({ one }) => ({
+  campaign: one(campaigns, { fields: [campaignAttachments.campaignId], references: [campaigns.id] }),
+}));
+
+export const campaignSendsRelations = relations(campaignSends, ({ one }) => ({
+  campaign: one(campaigns, { fields: [campaignSends.campaignId], references: [campaigns.id] }),
+  client: one(clients, { fields: [campaignSends.clientId], references: [clients.id] }),
+}));
+
+// Schemas para validação de campanhas
+export const insertCampaignSchema = createInsertSchema(campaigns).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  name: z.string().min(1, "Nome da campanha é obrigatório"),
+  type: z.enum(["email", "whatsapp"], { required_error: "Tipo de campanha é obrigatório" }),
+  subject: z.string().optional(),
+  message: z.string().min(1, "Mensagem é obrigatória"),
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertClient = z.infer<typeof insertClientSchema>;
 export type Client = typeof clients.$inferSelect;
+export type Campaign = typeof campaigns.$inferSelect;
+export type InsertCampaign = z.infer<typeof insertCampaignSchema>;
+export type CampaignAttachment = typeof campaignAttachments.$inferSelect;
+export type CampaignSend = typeof campaignSends.$inferSelect;

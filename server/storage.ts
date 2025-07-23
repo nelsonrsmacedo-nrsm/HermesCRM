@@ -1,4 +1,18 @@
-import { users, clients, type User, type InsertUser, type Client, type InsertClient } from "@shared/schema";
+import { 
+  users, 
+  clients, 
+  campaigns,
+  campaignAttachments,
+  campaignSends,
+  type User, 
+  type InsertUser, 
+  type Client, 
+  type InsertClient,
+  type Campaign,
+  type InsertCampaign,
+  type CampaignAttachment,
+  type CampaignSend
+} from "@shared/schema";
 import { db } from "./db";
 import { eq, or, ilike, desc, and } from "drizzle-orm";
 import session from "express-session";
@@ -16,6 +30,14 @@ export interface IStorage {
   createClient(client: InsertClient & { userId: number }): Promise<Client>;
   updateClient(id: number, userId: number, client: Partial<InsertClient>): Promise<Client | undefined>;
   deleteClient(id: number, userId: number): Promise<boolean>;
+  
+  // Campanhas de Mala Direta
+  getCampaigns(userId: number): Promise<Campaign[]>;
+  getCampaign(id: number, userId: number): Promise<Campaign | undefined>;
+  createCampaign(campaign: InsertCampaign & { userId: number }): Promise<Campaign>;
+  updateCampaign(id: number, userId: number, campaign: Partial<InsertCampaign>): Promise<Campaign | undefined>;
+  deleteCampaign(id: number, userId: number): Promise<boolean>;
+  
   sessionStore: session.Store;
 }
 
@@ -48,11 +70,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getClients(userId: number, search?: string): Promise<Client[]> {
-    let whereCondition = eq(clients.userId, userId);
+    let query = db.select().from(clients).where(eq(clients.userId, userId));
     
     if (search) {
-      whereCondition = and(
-        eq(clients.userId, userId),
+      query = query.where(
         or(
           ilike(clients.name, `%${search}%`),
           ilike(clients.email, `%${search}%`),
@@ -65,7 +86,7 @@ export class DatabaseStorage implements IStorage {
       );
     }
     
-    return db.select().from(clients).where(whereCondition).orderBy(desc(clients.createdAt));
+    return query.orderBy(desc(clients.createdAt));
   }
 
   async getClient(id: number, userId: number): Promise<Client | undefined> {
@@ -97,6 +118,49 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .delete(clients)
       .where(and(eq(clients.id, id), eq(clients.userId, userId)));
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  // Campanhas de Mala Direta
+  async getCampaigns(userId: number): Promise<Campaign[]> {
+    return db.select().from(campaigns).where(eq(campaigns.userId, userId)).orderBy(desc(campaigns.createdAt));
+  }
+
+  async getCampaign(id: number, userId: number): Promise<Campaign | undefined> {
+    const [campaign] = await db
+      .select()
+      .from(campaigns)
+      .where(and(eq(campaigns.id, id), eq(campaigns.userId, userId)));
+    return campaign || undefined;
+  }
+
+  async createCampaign(campaign: InsertCampaign & { userId: number }): Promise<Campaign> {
+    const [newCampaign] = await db
+      .insert(campaigns)
+      .values({
+        ...campaign,
+        updatedAt: new Date()
+      })
+      .returning();
+    return newCampaign;
+  }
+
+  async updateCampaign(id: number, userId: number, campaignData: Partial<InsertCampaign>): Promise<Campaign | undefined> {
+    const [updatedCampaign] = await db
+      .update(campaigns)
+      .set({
+        ...campaignData,
+        updatedAt: new Date()
+      })
+      .where(and(eq(campaigns.id, id), eq(campaigns.userId, userId)))
+      .returning();
+    return updatedCampaign || undefined;
+  }
+
+  async deleteCampaign(id: number, userId: number): Promise<boolean> {
+    const result = await db
+      .delete(campaigns)
+      .where(and(eq(campaigns.id, id), eq(campaigns.userId, userId)));
     return result.rowCount !== null && result.rowCount > 0;
   }
 }

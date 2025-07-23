@@ -11,7 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Users, Plus, Search, LogOut, Edit, Trash2, User, Building, Phone, MapPin, Contact, Briefcase, MessageSquare } from "lucide-react";
+import { Users, Plus, Search, LogOut, Edit, Trash2, User, Building, Phone, MapPin, Contact, Briefcase, MessageSquare, Mail } from "lucide-react";
+import { Link } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertClientSchema, type InsertClient, type Client } from "@shared/schema";
@@ -248,6 +249,12 @@ export default function HomePage() {
             </div>
             
             <div className="flex items-center space-x-4">
+              <Link href="/mala-direta">
+                <Button variant="outline" size="sm" className="flex items-center gap-2">
+                  <Mail className="h-4 w-4" />
+                  Mala Direta
+                </Button>
+              </Link>
               <div className="flex items-center text-sm text-gray-700">
                 <User className="h-4 w-4 text-gray-400 mr-2" />
                 <span>{user?.username}</span>
