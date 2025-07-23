@@ -48,35 +48,23 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getClients(userId: number, search?: string): Promise<Client[]> {
-    let whereCondition = eq(clients.userId, userId);
+    let baseQuery = db.select().from(clients).where(eq(clients.userId, userId));
     
     if (search) {
-      whereCondition = eq(clients.userId, userId);
-      const searchCondition = or(
-        ilike(clients.name, `%${search}%`),
-        ilike(clients.email, `%${search}%`)
-      );
-      whereCondition = eq(clients.userId, userId);
-    }
-    
-    const query = db.select().from(clients).where(
-      search ? 
-        eq(clients.userId, userId) : 
-        eq(clients.userId, userId)
-    );
-    
-    if (search) {
-      const results = await db.select().from(clients).where(
-        eq(clients.userId, userId)
-      ).orderBy(desc(clients.createdAt));
-      
-      return results.filter(client => 
-        client.name.toLowerCase().includes(search.toLowerCase()) ||
-        client.email.toLowerCase().includes(search.toLowerCase())
+      baseQuery = baseQuery.where(
+        or(
+          ilike(clients.name, `%${search}%`),
+          ilike(clients.email, `%${search}%`),
+          ilike(clients.cpfCnpj, `%${search}%`),
+          ilike(clients.mobilePhone, `%${search}%`),
+          ilike(clients.landlinePhone, `%${search}%`),
+          ilike(clients.city, `%${search}%`),
+          ilike(clients.businessArea, `%${search}%`)
+        )
       );
     }
     
-    return query.orderBy(desc(clients.createdAt));
+    return baseQuery.orderBy(desc(clients.createdAt));
   }
 
   async getClient(id: number, userId: number): Promise<Client | undefined> {
