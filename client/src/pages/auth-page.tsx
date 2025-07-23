@@ -1,6 +1,5 @@
-
 import { useState } from "react";
-import { Navigate } from "wouter";
+import { Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,7 +25,7 @@ export default function AuthPage() {
 
   // Only redirect after hooks are called
   if (!isLoading && user) {
-    return <Navigate to="/" />;
+    return <Redirect to="/" />;
   }
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -36,7 +35,7 @@ export default function AuthPage() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (registerData.password !== registerData.confirmPassword) {
       return;
     }
@@ -47,7 +46,7 @@ export default function AuthPage() {
         email: registerData.email,
         password: registerData.password,
       });
-      
+
       registerMutation.mutate(validatedData);
     } catch (error) {
       console.error("Validation error:", error);
