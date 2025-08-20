@@ -7,6 +7,7 @@ import {
   emailConfigurations,
   type User,
   type InsertUser,
+  type InsertAdminUser,
   type Client,
   type InsertClient,
   type Campaign,
@@ -115,7 +116,7 @@ export class DatabaseStorage implements IStorage {
 
     // Then delete the user
     const result = await this.db.delete(users).where(eq(users.id, id));
-    return result.rowCount > 0;
+    return result.rowCount !== null && result.rowCount > 0;
   }
 
   // User methods
