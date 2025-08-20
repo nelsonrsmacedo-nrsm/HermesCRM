@@ -4,14 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 import { Users, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { insertUserSchema } from "@shared/schema";
+
 import { useToast } from "@/hooks/use-toast";
 
 export default function AuthPage() {
-  const { user, isLoading, loginMutation, registerMutation } = useAuth();
+  const { user, isLoading, loginMutation } = useAuth();
   const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -20,12 +20,6 @@ export default function AuthPage() {
   const [loginData, setLoginData] = useState({
     username: "",
     password: "",
-  });
-  const [registerData, setRegisterData] = useState({
-    username: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
   });
 
   // Only redirect after hooks are called
@@ -38,25 +32,7 @@ export default function AuthPage() {
     loginMutation.mutate(loginData);
   };
 
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
 
-    if (registerData.password !== registerData.confirmPassword) {
-      return;
-    }
-
-    try {
-      const validatedData = insertUserSchema.parse({
-        username: registerData.username,
-        email: registerData.email,
-        password: registerData.password,
-      });
-
-      registerMutation.mutate(validatedData);
-    } catch (error) {
-      console.error("Validation error:", error);
-    }
-  };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,7 +85,7 @@ export default function AuthPage() {
               Sistema de Controle de Clientes
             </h2>
             <p className="mt-2 text-gray-600">
-              Faça login ou crie uma conta para continuar
+              Faça login para acessar o sistema
             </p>
           </div>
 
@@ -156,13 +132,7 @@ export default function AuthPage() {
               </CardContent>
             </Card>
           ) : (
-            <Tabs defaultValue="login" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="login">Login</TabsTrigger>
-                <TabsTrigger value="register">Cadastro</TabsTrigger>
-              </TabsList>
-
-            <TabsContent value="login">
+            <div className="w-full">
               <Card>
                 <CardHeader>
                   <CardTitle>Entrar</CardTitle>
@@ -231,93 +201,7 @@ export default function AuthPage() {
                   </form>
                 </CardContent>
               </Card>
-            </TabsContent>
-
-            <TabsContent value="register">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Criar Conta</CardTitle>
-                  <CardDescription>
-                    Preencha os dados para criar sua conta
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleRegister} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="register-username">Nome de usuário</Label>
-                      <Input
-                        id="register-username"
-                        type="text"
-                        value={registerData.username}
-                        onChange={(e) =>
-                          setRegisterData({ ...registerData, username: e.target.value })
-                        }
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="register-email">Email</Label>
-                      <Input
-                        id="register-email"
-                        type="email"
-                        value={registerData.email}
-                        onChange={(e) =>
-                          setRegisterData({ ...registerData, email: e.target.value })
-                        }
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="register-password">Senha</Label>
-                      <div className="relative">
-                        <Input
-                          id="register-password"
-                          type={showPassword ? "text" : "password"}
-                          value={registerData.password}
-                          onChange={(e) =>
-                            setRegisterData({ ...registerData, password: e.target.value })
-                          }
-                          required
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                          onClick={() => setShowPassword(!showPassword)}
-                        >
-                          {showPassword ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="register-confirm-password">Confirmar Senha</Label>
-                      <Input
-                        id="register-confirm-password"
-                        type={showPassword ? "text" : "password"}
-                        value={registerData.confirmPassword}
-                        onChange={(e) =>
-                          setRegisterData({ ...registerData, confirmPassword: e.target.value })
-                        }
-                        required
-                      />
-                    </div>
-                    <Button
-                      type="submit"
-                      className="w-full"
-                      disabled={registerMutation.isPending}
-                    >
-                      {registerMutation.isPending ? "Criando..." : "Criar Conta"}
-                    </Button>
-                  </form>
-                </CardContent>
-              </Card>
-            </TabsContent>
-            </Tabs>
+            </div>
           )}
         </div>
       </div>
