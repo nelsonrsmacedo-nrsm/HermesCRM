@@ -175,6 +175,26 @@ export const campaignSendsRelations = relations(campaignSends, ({ one }) => ({
   client: one(clients, { fields: [campaignSends.clientId], references: [clients.id] }),
 }));
 
+// Tabela para configurações de email
+export const emailConfigurations = pgTable("email_configurations", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  smtpHost: text("smtp_host").notNull(),
+  smtpPort: integer("smtp_port").notNull().default(587),
+  smtpSecure: boolean("smtp_secure").default(false),
+  smtpUser: text("smtp_user").notNull(),
+  smtpPass: text("smtp_pass").notNull(),
+  fromEmail: text("from_email").notNull(),
+  fromName: text("from_name"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const emailConfigurationsRelations = relations(emailConfigurations, ({ one }) => ({
+  user: one(users, { fields: [emailConfigurations.userId], references: [users.id] }),
+}));
+
 // Schemas para validação de campanhas
 export const insertCampaignSchema = createInsertSchema(campaigns).omit({
   id: true,
@@ -188,6 +208,23 @@ export const insertCampaignSchema = createInsertSchema(campaigns).omit({
   message: z.string().min(1, "Mensagem é obrigatória"),
 });
 
+// Schema para configuração de email
+export const insertEmailConfigurationSchema = createInsertSchema(emailConfigurations).omit({
+  id: true,
+  userId: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  smtpHost: z.string().min(1, "Host SMTP é obrigatório"),
+  smtpPort: z.number().min(1).max(65535, "Porta deve estar entre 1 e 65535"),
+  smtpSecure: z.boolean().optional(),
+  smtpUser: z.string().min(1, "Usuário SMTP é obrigatório"),
+  smtpPass: z.string().min(1, "Senha SMTP é obrigatória"),
+  fromEmail: z.string().email("Email válido é obrigatório"),
+  fromName: z.string().optional(),
+  isActive: z.boolean().optional(),
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertClient = z.infer<typeof insertClientSchema>;
@@ -196,3 +233,5 @@ export type Campaign = typeof campaigns.$inferSelect;
 export type InsertCampaign = z.infer<typeof insertCampaignSchema>;
 export type CampaignAttachment = typeof campaignAttachments.$inferSelect;
 export type CampaignSend = typeof campaignSends.$inferSelect;
+export type EmailConfiguration = typeof emailConfigurations.$inferSelect;
+export type InsertEmailConfiguration = z.infer<typeof insertEmailConfigurationSchema>;

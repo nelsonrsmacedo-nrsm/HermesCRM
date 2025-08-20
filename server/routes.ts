@@ -253,21 +253,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await storage.setPasswordResetToken(user.id, resetToken, tokenExpiry);
 
-      // Configure nodemailer (you'll need to set up email credentials)
+      // Get user's email configuration
+      const emailConfig = await storage.getEmailConfiguration(user.id);
+
+      if (!emailConfig) {
+        return res.status(400).json({ 
+          message: "Configuração de email não encontrada. Configure o servidor de email primeiro." 
+        });
+      }
+
+      // Configure nodemailer with user's settings
       const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST || "smtp.gmail.com",
-        port: parseInt(process.env.SMTP_PORT || "587"),
-        secure: false,
+        host: emailConfig.smtpHost,
+        port: emailConfig.smtpPort,
+        secure: emailConfig.smtpSecure,
         auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS,
+          user: emailConfig.smtpUser,
+          pass: emailConfig.smtpPass,
         },
       });
 
       const resetUrl = `${req.protocol}://${req.get("host")}/reset-password?token=${resetToken}`;
 
       await transporter.sendMail({
-        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        from: emailConfig.smtpFrom || emailConfig.smtpUser,
         to: email,
         subject: "Recuperação de Senha - Sistema de Clientes",
         html: `

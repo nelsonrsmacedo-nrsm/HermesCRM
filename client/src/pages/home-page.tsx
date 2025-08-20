@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Users, Plus, Search, LogOut, Edit, Trash2, User, Building, Phone, MapPin, Contact, Briefcase, MessageSquare, Mail } from "lucide-react";
+import { Users, Plus, Search, LogOut, Edit, Trash2, User, Building, Phone, MapPin, Contact, Briefcase, MessageSquare, Mail, Settings } from "lucide-react";
 import { Link } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -117,13 +117,13 @@ export default function HomePage() {
       rgIe: "",
       birthDate: "",
       gender: undefined,
-      
+
       // Contato
       email: "",
       landlinePhone: "",
       mobilePhone: "",
       website: "",
-      
+
       // Endereço
       zipCode: "",
       street: "",
@@ -133,19 +133,19 @@ export default function HomePage() {
       city: "",
       state: "",
       country: "Brasil",
-      
+
       // Representante/Contato Principal
       contactName: "",
       contactPosition: "",
       contactPhone: "",
       contactEmail: "",
-      
+
       // Dados Comerciais
       businessArea: "",
       classification: "potencial",
       clientOrigin: "",
       status: "ativo",
-      
+
       // Observações
       notes: "",
       preferences: "",
@@ -171,13 +171,13 @@ export default function HomePage() {
       rgIe: client.rgIe || "",
       birthDate: client.birthDate || "",
       gender: client.gender || undefined,
-      
+
       // Contato
       email: client.email || "",
       landlinePhone: client.landlinePhone || "",
       mobilePhone: client.mobilePhone || "",
       website: client.website || "",
-      
+
       // Endereço
       zipCode: client.zipCode || "",
       street: client.street || "",
@@ -187,19 +187,19 @@ export default function HomePage() {
       city: client.city || "",
       state: client.state || "",
       country: client.country || "Brasil",
-      
+
       // Representante/Contato Principal
       contactName: client.contactName || "",
       contactPosition: client.contactPosition || "",
       contactPhone: client.contactPhone || "",
       contactEmail: client.contactEmail || "",
-      
+
       // Dados Comerciais
       businessArea: client.businessArea || "",
       classification: client.classification || "potencial",
       clientOrigin: client.clientOrigin || "",
       status: client.status || "ativo",
-      
+
       // Observações
       notes: client.notes || "",
       preferences: client.preferences || "",
@@ -247,7 +247,7 @@ export default function HomePage() {
                 <h1 className="text-xl font-semibold text-gray-900">Sistema de Clientes</h1>
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-4">
               <Link href="/mala-direta">
                 <Button variant="outline" size="sm" className="flex items-center gap-2">
@@ -255,6 +255,16 @@ export default function HomePage() {
                   Mala Direta
                 </Button>
               </Link>
+              <Button
+                variant="outline"
+                asChild
+                className="flex items-center gap-2"
+              >
+                <a href="/email-config">
+                  <Settings className="h-4 w-4" />
+                  Config. Email
+                </a>
+              </Button>
               <div className="flex items-center text-sm text-gray-700">
                 <User className="h-4 w-4 text-gray-400 mr-2" />
                 <span>{user?.username}</span>
@@ -457,7 +467,7 @@ export default function HomePage() {
               <CardContent>
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-                    
+
                     {/* Dados Básicos */}
                     <div className="space-y-4">
                       <div className="flex items-center gap-2 text-lg font-semibold text-gray-900">
@@ -465,7 +475,7 @@ export default function HomePage() {
                         Dados Básicos
                       </div>
                       <Separator />
-                      
+
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField
                           control={form.control}
@@ -578,7 +588,7 @@ export default function HomePage() {
                         Informações de Contato
                       </div>
                       <Separator />
-                      
+
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField
                           control={form.control}
@@ -645,7 +655,7 @@ export default function HomePage() {
                         Endereço
                       </div>
                       <Separator />
-                      
+
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         <FormField
                           control={form.control}
@@ -768,7 +778,7 @@ export default function HomePage() {
                         Representante / Contato Principal
                       </div>
                       <Separator />
-                      
+
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField
                           control={form.control}
@@ -835,7 +845,7 @@ export default function HomePage() {
                         Dados Comerciais
                       </div>
                       <Separator />
-                      
+
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField
                           control={form.control}
@@ -919,7 +929,7 @@ export default function HomePage() {
                         Observações
                       </div>
                       <Separator />
-                      
+
                       <div className="grid grid-cols-1 gap-4">
                         <FormField
                           control={form.control}
