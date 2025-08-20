@@ -345,14 +345,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
+      console.log("Request body:", req.body);
       const validatedData = insertAdminUserSchema.parse(req.body);
+      console.log("Validated data:", validatedData);
       
       // Check if username or email already exists
-      const existingUser = await storage.getUserByUsername(validatedData.username) || 
-                          await storage.getUserByEmail(validatedData.email);
+      const existingUsername = await storage.getUserByUsername(validatedData.username);
+      const existingEmail = await storage.getUserByEmail(validatedData.email);
       
-      if (existingUser) {
-        return res.status(400).json({ message: "Nome de usuário ou email já existe" });
+      console.log("Existing username:", existingUsername);
+      console.log("Existing email:", existingEmail);
+      
+      if (existingUsername) {
+        return res.status(400).json({ message: "Nome de usuário já existe" });
+      }
+      
+      if (existingEmail) {
+        return res.status(400).json({ message: "Email já existe" });
       }
 
       const { hashPassword } = await import("./auth");
