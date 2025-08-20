@@ -180,6 +180,27 @@ export default function UserManagementPage() {
     },
   });
 
+  const clearAllUsersMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("DELETE", "/api/admin/users/clear-all");
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      toast({
+        title: "Contas limpas com sucesso",
+        description: `${data.deletedCount || 0} usuários foram removidos do sistema.`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao limpar contas",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   // Filter users based on search term
   const filteredUsers = users.filter(user =>
     user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -213,6 +234,10 @@ export default function UserManagementPage() {
 
   const handleDeleteUser = (userId: number) => {
     deleteUserMutation.mutate(userId);
+  };
+
+  const handleClearAllUsers = () => {
+    clearAllUsersMutation.mutate();
   };
 
   const getRoleBadge = (role: string) => {
@@ -263,13 +288,45 @@ export default function UserManagementPage() {
             Gerencie usuários e suas permissões no sistema
           </p>
         </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button data-testid="button-create-user">
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Usuário
-            </Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" data-testid="button-clear-all-users">
+                <Trash2 className="h-4 w-4 mr-2" />
+                Limpar Todas as Contas
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Confirmar limpeza de contas</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Tem certeza que deseja remover TODAS as contas de usuário do sistema?
+                  Apenas sua conta de administrador será mantida. Esta ação não pode ser desfeita
+                  e todos os dados dos usuários (clientes, campanhas, configurações) serão 
+                  permanentemente removidos.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleClearAllUsers}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  data-testid="button-confirm-clear-all"
+                >
+                  Limpar Todas as Contas
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button data-testid="button-create-user">
+                <Plus className="h-4 w-4 mr-2" />
+                Novo Usuário
+              </Button>
+            </DialogTrigger>
+        </div>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>Criar Novo Usuário</DialogTitle>

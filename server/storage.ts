@@ -33,6 +33,7 @@ export interface IStorage {
   createUserByAdmin(userData: InsertAdminUser & { password: string }): Promise<User>;
   updateUserByAdmin(id: number, userData: Partial<InsertAdminUser>): Promise<User | null>;
   deleteUserById(id: number): Promise<boolean>;
+  deleteAllUsersExceptAdmin(adminId: number): Promise<number>;
 
   createUser(user: InsertUser): Promise<User>;
   getClients(userId: number, search?: string): Promise<Client[]>;
@@ -117,6 +118,26 @@ export class DatabaseStorage implements IStorage {
     // Then delete the user
     const result = await this.db.delete(users).where(eq(users.id, id));
     return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  async deleteAllUsersExceptAdmin(adminId: number): Promise<number> {
+    // Get all users except the admin
+    const usersToDelete = await this.db.select({ id: users.id }).from(users).where(ne(users.id, adminId));
+    
+    if (usersToDelete.length === 0) {
+      return 0;
+    }
+
+    const userIds = usersToDelete.map(user => user.id);
+
+    // Delete all related data for these users
+    await this.db.delete(clients).where(eq(clients.userId, userIds[0]) || (userIds.length > 1 ? or(...userIds.slice(1).map(id => eq(clients.userId, id))) : undefined));
+    await this.db.delete(campaigns).where(eq(campaigns.userId, userIds[0]) || (userIds.length > 1 ? or(...userIds.slice(1).map(id => eq(campaigns.userId, id))) : undefined));
+    await this.db.delete(emailConfigurations).where(eq(emailConfigurations.userId, userIds[0]) || (userIds.length > 1 ? or(...userIds.slice(1).map(id => eq(emailConfigurations.userId, id))) : undefined));
+
+    // Delete all users except admin
+    const result = await this.db.delete(users).where(ne(users.id, adminId));
+    return result.rowCount || 0;
   }
 
   // User methods

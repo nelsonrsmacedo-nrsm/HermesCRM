@@ -453,6 +453,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/admin/users/clear-all", async (req, res) => {
+    if (!req.isAuthenticated() || req.user!.role !== "admin") {
+      return res.status(403).json({ message: "Acesso negado - Apenas administradores" });
+    }
+
+    try {
+      const deletedCount = await storage.deleteAllUsersExceptAdmin(req.user!.id);
+      
+      res.json({ 
+        message: `${deletedCount} usuários foram removidos do sistema`,
+        remainingUsers: 1 // Only the admin remains
+      });
+    } catch (error) {
+      console.error("Error clearing users:", error);
+      res.status(500).json({ message: "Erro interno do servidor" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
