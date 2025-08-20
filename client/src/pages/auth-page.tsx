@@ -29,7 +29,15 @@ export default function AuthPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    loginMutation.mutate(loginData);
+    try {
+      await loginMutation.mutateAsync(loginData);
+    } catch (error) {
+      toast({
+        title: "Erro no login",
+        description: "Usuário ou senha incorretos",
+        variant: "destructive",
+      });
+    }
   };
 
 
@@ -184,9 +192,9 @@ export default function AuthPage() {
                     <Button
                       type="submit"
                       className="w-full"
-                      disabled={loginMutation.isPending}
+                      disabled={loginMutation?.isPending}
                     >
-                      {loginMutation.isPending ? "Entrando..." : "Entrar"}
+                      {loginMutation?.isPending ? "Entrando..." : "Entrar"}
                     </Button>
                     <div className="text-center">
                       <Button

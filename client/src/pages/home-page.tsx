@@ -284,8 +284,14 @@ export default function HomePage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => logoutMutation.mutate()}
-                disabled={logoutMutation.isPending}
+                onClick={async () => {
+                  try {
+                    await logoutMutation.mutateAsync();
+                  } catch (error) {
+                    console.error("Erro no logout:", error);
+                  }
+                }}
+                disabled={logoutMutation?.isPending}
               >
                 <LogOut className="h-4 w-4 mr-2" />
                 Sair

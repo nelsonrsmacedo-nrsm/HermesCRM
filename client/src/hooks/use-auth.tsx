@@ -1,62 +1,59 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
-import type { User } from "@shared/schema";
 
-interface AuthContextType {
+type User = {
+  id: number;
+  username: string;
+  email: string;
+  role: string;
+  status: string;
+  canAccessMaladireta: boolean;
+  canAccessEmailConfig: boolean;
+};
+
+type AuthContextType = {
   user: User | null;
-  login: (credentials: { username: string; password: string }) => Promise<void>;
-  register: (data: { username: string; email: string; password: string }) => Promise<void>;
+  login: (credentials: { username: string; password: string }) => Promise<User>;
   logout: () => Promise<void>;
-  isLoading: boolean;
   hasPermission: (permission: string) => boolean;
-}
+  logoutMutation: any;
+  loginMutation: any;
+  isLoading: boolean;
+};
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [, setLocation] = useLocation();
 
-  // Check if user is logged in on app start
+  // Check if user is already authenticated on mount
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await apiRequest("GET", "/api/user");
+        const response = await fetch("/api/user", {
+          credentials: "include",
+        });
         if (response.ok) {
           const userData = await response.json();
           setUser(userData);
         }
       } catch (error) {
         // User not authenticated
+        setUser(null);
       } finally {
         setIsLoading(false);
       }
     };
-
     checkAuth();
   }, []);
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: { username: string; password: string }) => {
       const response = await apiRequest("POST", "/api/login", credentials);
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(error);
-      }
-      return response.json();
-    },
-    onSuccess: (userData) => {
-      setUser(userData);
-      setLocation("/");
-    },
-  });
-
-  const registerMutation = useMutation({
-    mutationFn: async (data: { username: string; email: string; password: string }) => {
-      const response = await apiRequest("POST", "/api/register", data);
       if (!response.ok) {
         const error = await response.text();
         throw new Error(error);
@@ -106,10 +103,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         login: loginMutation.mutateAsync,
-        register: registerMutation.mutateAsync,
         logout: logoutMutation.mutateAsync,
-        isLoading: isLoading || loginMutation.isPending || registerMutation.isPending,
         hasPermission,
+        logoutMutation,
+        loginMutation,
+        isLoading,
       }}
     >
       {children}
@@ -119,8 +117,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
+  if (!context) {
+    throw new Error("useAuth must be used within AuthProvider");
   }
   return context;
 }
