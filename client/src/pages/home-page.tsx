@@ -170,7 +170,7 @@ export default function HomePage() {
       cpfCnpj: client.cpfCnpj || "",
       rgIe: client.rgIe || "",
       birthDate: client.birthDate || "",
-      gender: client.gender || undefined,
+      gender: (client.gender as "M" | "F" | "Outro" | "Prefiro não informar") || undefined,
 
       // Contato
       email: client.email || "",
@@ -196,9 +196,9 @@ export default function HomePage() {
 
       // Dados Comerciais
       businessArea: client.businessArea || "",
-      classification: client.classification || "potencial",
+      classification: (client.classification as "potencial" | "ativo" | "inativo") || "potencial",
       clientOrigin: client.clientOrigin || "",
-      status: client.status || "ativo",
+      status: (client.status as "ativo" | "inativo") || "ativo",
 
       // Observações
       notes: client.notes || "",
@@ -270,7 +270,7 @@ export default function HomePage() {
                 </Button>
               )}
               {hasPermission("userManagement") && (
-                <Link href="/users">
+                <Link href="/user-management">
                   <Button variant="outline" size="sm" className="flex items-center gap-2">
                     <Users className="h-4 w-4" />
                     Usuários

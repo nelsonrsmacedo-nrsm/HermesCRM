@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Link } from "wouter";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { insertUserSchema, User as SelectUser } from "@shared/schema";
+import { insertAdminUserSchema, User as SelectUser } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -80,12 +80,9 @@ import {
 } from "lucide-react";
 
 // Form schemas
-const createUserFormSchema = insertUserSchema
-  .omit({ id: true, createdAt: true })
+const createUserFormSchema = insertAdminUserSchema
   .extend({
     confirmPassword: z.string().min(6, "A confirmação de senha deve ter pelo menos 6 caracteres"),
-    canAccessMaladireta: z.boolean().default(false),
-    canAccessEmailConfig: z.boolean().default(false),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "As senhas não coincidem",
@@ -123,8 +120,8 @@ export default function UserManagementPage() {
       email: "",
       password: "",
       confirmPassword: "",
-      role: "user",
-      status: "active",
+      role: "user" as const,
+      status: "active" as const,
       canAccessMaladireta: false,
       canAccessEmailConfig: false,
     },
@@ -136,8 +133,8 @@ export default function UserManagementPage() {
     defaultValues: {
       username: "",
       email: "",
-      role: "user",
-      status: "active",
+      role: "user" as const,
+      status: "active" as const,
       canAccessMaladireta: false,
       canAccessEmailConfig: false,
     },
@@ -267,8 +264,8 @@ export default function UserManagementPage() {
     editForm.reset({
       username: user.username,
       email: user.email,
-      role: user.role,
-      status: user.status,
+      role: user.role as "admin" | "user",
+      status: user.status as "active" | "inactive",
       canAccessMaladireta: user.canAccessMaladireta,
       canAccessEmailConfig: user.canAccessEmailConfig,
     });
