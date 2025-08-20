@@ -276,7 +276,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const resetUrl = `${req.protocol}://${req.get("host")}/reset-password?token=${resetToken}`;
 
       await transporter.sendMail({
-        from: emailConfig.smtpFrom || emailConfig.smtpUser,
+        from: emailConfig.fromEmail || emailConfig.smtpUser,
         to: email,
         subject: "Recuperação de Senha - Sistema de Clientes",
         html: `
