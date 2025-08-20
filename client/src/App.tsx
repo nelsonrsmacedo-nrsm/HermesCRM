@@ -16,12 +16,28 @@ import ResetPasswordPage from "@/pages/reset-password-page";
 function Router() {
   return (
     <Switch>
-      <ProtectedRoute path="/" component={HomePage} />
-      <ProtectedRoute path="/mala-direta" component={MalaDiretaPage} />
       <Route path="/auth" component={AuthPage} />
       <Route path="/reset-password" component={ResetPasswordPage} />
-      <ProtectedRoute path="/email-config" component={EmailConfigPage} />
-      <ProtectedRoute path="/users" component={UserManagementPage} />
+      <Route path="/">
+        <ProtectedRoute>
+          <HomePage />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/mala-direta">
+        <ProtectedRoute requirePermission="maladireta">
+          <MalaDiretaPage />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/email-config">
+        <ProtectedRoute requirePermission="emailConfig">
+          <EmailConfigPage />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/user-management">
+        <ProtectedRoute requirePermission="userManagement">
+          <UserManagementPage />
+        </ProtectedRoute>
+      </Route>
       <Route path="*" component={NotFound} />
     </Switch>
   );

@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Users, Plus, Search, LogOut, Edit, Trash2, User, Building, Phone, MapPin, Contact, Briefcase, MessageSquare, Mail, Settings } from "lucide-react";
+import { Users, Plus, Search, LogOut, Edit, Trash2, User, Building, Phone, MapPin, Contact, Briefcase, MessageSquare, Mail, Settings, Send } from "lucide-react";
 import { Link } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -21,7 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 
 export default function HomePage() {
-  const { user, logoutMutation } = useAuth();
+  const { user, logoutMutation, hasPermission } = useAuth();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("clients");
@@ -249,23 +249,27 @@ export default function HomePage() {
             </div>
 
             <div className="flex items-center space-x-4">
-              <Link href="/mala-direta">
-                <Button variant="outline" size="sm" className="flex items-center gap-2">
-                  <Mail className="h-4 w-4" />
-                  Mala Direta
+              {hasPermission("maladireta") && (
+                <Link href="/mala-direta">
+                  <Button variant="outline" size="sm" className="flex items-center gap-2">
+                    <Send className="h-4 w-4" />
+                    Mala Direta
+                  </Button>
+                </Link>
+              )}
+              {hasPermission("emailConfig") && (
+                <Button
+                  variant="outline"
+                  asChild
+                  className="flex items-center gap-2"
+                >
+                  <a href="/email-config">
+                    <Settings className="h-4 w-4" />
+                    Config. Email
+                  </a>
                 </Button>
-              </Link>
-              <Button
-                variant="outline"
-                asChild
-                className="flex items-center gap-2"
-              >
-                <a href="/email-config">
-                  <Settings className="h-4 w-4" />
-                  Config. Email
-                </a>
-              </Button>
-              {user?.role === "admin" && (
+              )}
+              {hasPermission("userManagement") && (
                 <Link href="/users">
                   <Button variant="outline" size="sm" className="flex items-center gap-2">
                     <Users className="h-4 w-4" />

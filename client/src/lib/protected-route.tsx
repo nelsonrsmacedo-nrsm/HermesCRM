@@ -1,33 +1,47 @@
+import { ReactNode } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { Loader2 } from "lucide-react";
-import { Redirect, Route } from "wouter";
+import { useLocation } from "wouter";
+import { useEffect } from "react";
 
-export function ProtectedRoute({
-  path,
-  component: Component,
-}: {
-  path: string;
-  component: () => React.JSX.Element;
-}) {
-  const { user, isLoading } = useAuth();
+interface ProtectedRouteProps {
+  children: ReactNode;
+  requirePermission?: string;
+}
+
+export function ProtectedRoute({ children, requirePermission }: ProtectedRouteProps) {
+  const { user, isLoading, hasPermission } = useAuth();
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      setLocation("/auth");
+    } else if (!isLoading && user && requirePermission && !hasPermission(requirePermission)) {
+      setLocation("/");
+    }
+  }, [user, isLoading, setLocation, requirePermission, hasPermission]);
 
   if (isLoading) {
     return (
-      <Route path={path}>
-        <div className="flex items-center justify-center min-h-screen">
-          <Loader2 className="h-8 w-8 animate-spin text-border" />
-        </div>
-      </Route>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-lg">Carregando...</div>
+      </div>
     );
   }
 
   if (!user) {
+    return null;
+  }
+
+  if (requirePermission && !hasPermission(requirePermission)) {
     return (
-      <Route path={path}>
-        <Redirect to="/auth" />
-      </Route>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2">Acesso Negado</h2>
+          <p className="text-gray-600">Você não tem permissão para acessar esta página.</p>
+        </div>
+      </div>
     );
   }
 
-  return <Component />
+  return <>{children}</>;
 }
