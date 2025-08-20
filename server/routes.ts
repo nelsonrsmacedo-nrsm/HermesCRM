@@ -4,6 +4,8 @@ import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { insertClientSchema, insertCampaignSchema, type InsertClient, type InsertCampaign } from "@shared/schema";
 import { z } from "zod";
+import nodemailer from "nodemailer";
+import { randomBytes } from "crypto";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // sets up /api/register, /api/login, /api/logout, /api/user
@@ -62,7 +64,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const validatedData = insertClientSchema.partial().parse(req.body);
       const client = await storage.updateClient(id, req.user!.id, validatedData);
-      
+
       if (!client) {
         return res.status(404).json({ message: "Cliente não encontrado" });
       }
@@ -92,7 +94,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const deleted = await storage.deleteClient(id, req.user!.id);
-      
+
       if (!deleted) {
         return res.status(404).json({ message: "Cliente não encontrado" });
       }
@@ -156,7 +158,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const validatedData = insertCampaignSchema.partial().parse(req.body);
       const campaign = await storage.updateCampaign(id, req.user!.id, validatedData);
-      
+
       if (!campaign) {
         return res.status(404).json({ message: "Campanha não encontrada" });
       }
@@ -186,7 +188,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const deleted = await storage.deleteCampaign(id, req.user!.id);
-      
+
       if (!deleted) {
         return res.status(404).json({ message: "Campanha não encontrada" });
       }
@@ -228,6 +230,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Error sending campaign:", error);
+      res.status(500).json({ message: "Erro interno do servidor" });
+    }
+  });
+
+  // Password recovery routes
+  app.post("/api/forgot-password", async (req, res) => {
+    try {
+      const { email } = req.body;
+      if (!email) {
+        return res.status(400).json({ message: "Email é obrigatório" });
+      }
+
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        // Don't reveal if email exists for security
+        return res.json({ message: "Se o email existir, você receberá instruções para redefinir sua senha" });
+      }
+
+      const resetToken = randomBytes(32).toString("hex");
+      const tokenExpiry = new Date(Date.now() + 3600000); // 1 hour from now
+
+      await storage.setPasswordResetToken(user.id, resetToken, tokenExpiry);
+
+      // Configure nodemailer (you'll need to set up email credentials)
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST || "smtp.gmail.com",
+        port: parseInt(process.env.SMTP_PORT || "587"),
+        secure: false,
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      });
+
+      const resetUrl = `${req.protocol}://${req.get("host")}/reset-password?token=${resetToken}`;
+
+      await transporter.sendMail({
+        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        to: email,
+        subject: "Recuperação de Senha - Sistema de Clientes",
+        html: `
+          <h2>Recuperação de Senha</h2>
+          <p>Você solicitou a recuperação de senha para sua conta.</p>
+          <p>Clique no link abaixo para redefinir sua senha:</p>
+          <a href="${resetUrl}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Redefinir Senha</a>
+          <p>Este link expira em 1 hora.</p>
+          <p>Se você não solicitou esta recuperação, ignore este email.</p>
+        `,
+      });
+
+      res.json({ message: "Se o email existir, você receberá instruções para redefinir sua senha" });
+    } catch (error) {
+      console.error("Error in forgot password:", error);
+      res.status(500).json({ message: "Erro interno do servidor" });
+    }
+  });
+
+  app.post("/api/reset-password", async (req, res) => {
+    try {
+      const { token, newPassword } = req.body;
+
+      if (!token || !newPassword) {
+        return res.status(400).json({ message: "Token e nova senha são obrigatórios" });
+      }
+
+      const user = await storage.getUserByResetToken(token);
+      if (!user || !user.resetTokenExpiry || new Date() > user.resetTokenExpiry) {
+        return res.status(400).json({ message: "Token inválido ou expirado" });
+      }
+
+      // Hash the new password
+      const { hashPassword } = require("./auth");
+      const hashedPassword = await hashPassword(newPassword);
+
+      // Update password and clear reset token
+      await storage.updateUser(user.id, { password: hashedPassword });
+      await storage.clearPasswordResetToken(user.id);
+
+      res.json({ message: "Senha redefinida com sucesso" });
+    } catch (error) {
+      console.error("Error in reset password:", error);
       res.status(500).json({ message: "Erro interno do servidor" });
     }
   });

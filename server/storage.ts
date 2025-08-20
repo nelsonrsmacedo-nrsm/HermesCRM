@@ -30,14 +30,14 @@ export interface IStorage {
   createClient(client: InsertClient & { userId: number }): Promise<Client>;
   updateClient(id: number, userId: number, client: Partial<InsertClient>): Promise<Client | undefined>;
   deleteClient(id: number, userId: number): Promise<boolean>;
-  
+
   // Campanhas de Mala Direta
   getCampaigns(userId: number): Promise<Campaign[]>;
   getCampaign(id: number, userId: number): Promise<Campaign | undefined>;
   createCampaign(campaign: InsertCampaign & { userId: number }): Promise<Campaign>;
   updateCampaign(id: number, userId: number, campaign: Partial<InsertCampaign>): Promise<Campaign | undefined>;
   deleteCampaign(id: number, userId: number): Promise<boolean>;
-  
+
   sessionStore: session.Store;
 }
 
@@ -71,7 +71,7 @@ export class DatabaseStorage implements IStorage {
 
   async getClients(userId: number, search?: string): Promise<Client[]> {
     let query = db.select().from(clients).where(eq(clients.userId, userId));
-    
+
     if (search) {
       query = query.where(
         or(
@@ -85,7 +85,7 @@ export class DatabaseStorage implements IStorage {
         )
       );
     }
-    
+
     return query.orderBy(desc(clients.createdAt));
   }
 
@@ -162,6 +162,36 @@ export class DatabaseStorage implements IStorage {
       .delete(campaigns)
       .where(and(eq(campaigns.id, id), eq(campaigns.userId, userId)));
     return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  async updateUser(id: number, updates: Partial<InsertUser>) {
+    return db.update(users).set(updates).where(eq(users.id, id)).returning().then(rows => rows[0]);
+  }
+
+  async getUserByEmail(email: string) {
+    return db.select().from(users).where(eq(users.email, email)).then(rows => rows[0]);
+  }
+
+  async setPasswordResetToken(userId: number, token: string, expiry: Date) {
+    return db.update(users)
+      .set({ resetToken: token, resetTokenExpiry: expiry })
+      .where(eq(users.id, userId))
+      .returning()
+      .then(rows => rows[0]);
+  }
+
+  async getUserByResetToken(token: string) {
+    return db.select().from(users)
+      .where(eq(users.resetToken, token))
+      .then(rows => rows[0]);
+  }
+
+  async clearPasswordResetToken(userId: number) {
+    return db.update(users)
+      .set({ resetToken: null, resetTokenExpiry: null })
+      .where(eq(users.id, userId))
+      .returning()
+      .then(rows => rows[0]);
   }
 }
 
