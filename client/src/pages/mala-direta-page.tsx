@@ -324,6 +324,18 @@ export default function MalaDiretaPage() {
                 Envie mensagens personalizadas por email ou WhatsApp para seus clientes
               </p>
             </div>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                asChild
+                className="flex items-center gap-2"
+              >
+                <a href="/">
+                  <ArrowLeft className="h-4 w-4" />
+                  Voltar ao Cadastro
+                </a>
+              </Button>
+            </div>
           </div>
         </div>
       </div>
