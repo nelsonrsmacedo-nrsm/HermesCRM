@@ -8,8 +8,12 @@ export const users = pgTable("users", {
   username: text("username").notNull().unique(),
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
+  role: text("role").notNull().default("user"), // admin, user
+  status: text("status").notNull().default("active"), // active, inactive
   resetToken: text("reset_token"),
   resetTokenExpiry: timestamp("reset_token_expiry"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const clients = pgTable("clients", {
@@ -68,6 +72,24 @@ export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   email: true,
   password: true,
+}).extend({
+  username: z.string().min(3, "Nome de usuário deve ter pelo menos 3 caracteres"),
+  email: z.string().email("Email válido é obrigatório"),
+  password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
+});
+
+export const insertAdminUserSchema = createInsertSchema(users).omit({
+  id: true,
+  resetToken: true,
+  resetTokenExpiry: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  username: z.string().min(3, "Nome de usuário deve ter pelo menos 3 caracteres"),
+  email: z.string().email("Email válido é obrigatório"),
+  password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
+  role: z.enum(["admin", "user"]).default("user"),
+  status: z.enum(["active", "inactive"]).default("active"),
 });
 
 export const insertClientSchema = createInsertSchema(clients).omit({
@@ -227,6 +249,7 @@ export const insertEmailConfigurationSchema = createInsertSchema(emailConfigurat
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
+export type InsertAdminUser = z.infer<typeof insertAdminUserSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertClient = z.infer<typeof insertClientSchema>;
 export type Client = typeof clients.$inferSelect;

@@ -265,6 +265,14 @@ export default function HomePage() {
                   Config. Email
                 </a>
               </Button>
+              {user?.role === "admin" && (
+                <Link href="/users">
+                  <Button variant="outline" size="sm" className="flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Usuários
+                  </Button>
+                </Link>
+              )}
               <div className="flex items-center text-sm text-gray-700">
                 <User className="h-4 w-4 text-gray-400 mr-2" />
                 <span>{user?.username}</span>

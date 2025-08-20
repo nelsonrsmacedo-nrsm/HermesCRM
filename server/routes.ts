@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
-import { insertClientSchema, insertCampaignSchema, type InsertClient, type InsertCampaign } from "@shared/schema";
+import { insertClientSchema, insertCampaignSchema, insertAdminUserSchema, type InsertClient, type InsertCampaign, type InsertAdminUser } from "@shared/schema";
 import { z } from "zod";
 import nodemailer from "nodemailer";
 import { randomBytes } from "crypto";
@@ -320,6 +320,135 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "Senha redefinida com sucesso" });
     } catch (error) {
       console.error("Error in reset password:", error);
+      res.status(500).json({ message: "Erro interno do servidor" });
+    }
+  });
+
+  // User management routes (admin only)
+  app.get("/api/admin/users", async (req, res) => {
+    if (!req.isAuthenticated() || req.user!.role !== "admin") {
+      return res.status(403).json({ message: "Acesso negado - Apenas administradores" });
+    }
+
+    try {
+      const users = await storage.getAllUsers(req.user!.id);
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ message: "Erro interno do servidor" });
+    }
+  });
+
+  app.post("/api/admin/users", async (req, res) => {
+    if (!req.isAuthenticated() || req.user!.role !== "admin") {
+      return res.status(403).json({ message: "Acesso negado - Apenas administradores" });
+    }
+
+    try {
+      const validatedData = insertAdminUserSchema.parse(req.body);
+      
+      // Check if username or email already exists
+      const existingUser = await storage.getUserByUsername(validatedData.username) || 
+                          await storage.getUserByEmail(validatedData.email);
+      
+      if (existingUser) {
+        return res.status(400).json({ message: "Nome de usuário ou email já existe" });
+      }
+
+      const { hashPassword } = require("./auth");
+      const hashedPassword = await hashPassword(validatedData.password);
+
+      const user = await storage.createUserByAdmin({
+        ...validatedData,
+        password: hashedPassword,
+      });
+
+      // Remove password from response
+      const { password, ...userResponse } = user;
+      res.status(201).json(userResponse);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Dados inválidos", 
+          errors: error.errors 
+        });
+      }
+      console.error("Error creating user:", error);
+      res.status(500).json({ message: "Erro interno do servidor" });
+    }
+  });
+
+  app.put("/api/admin/users/:id", async (req, res) => {
+    if (!req.isAuthenticated() || req.user!.role !== "admin") {
+      return res.status(403).json({ message: "Acesso negado - Apenas administradores" });
+    }
+
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "ID inválido" });
+      }
+
+      // Prevent self-modification of role
+      if (id === req.user!.id && req.body.role && req.body.role !== req.user!.role) {
+        return res.status(400).json({ message: "Você não pode alterar seu próprio papel" });
+      }
+
+      const updateData = { ...req.body };
+      
+      // If password is being updated, hash it
+      if (updateData.password) {
+        const { hashPassword } = require("./auth");
+        updateData.password = await hashPassword(updateData.password);
+      }
+
+      const validatedData = insertAdminUserSchema.partial().parse(updateData);
+      const user = await storage.updateUserByAdmin(id, validatedData);
+
+      if (!user) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+
+      // Remove password from response
+      const { password, ...userResponse } = user;
+      res.json(userResponse);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Dados inválidos", 
+          errors: error.errors 
+        });
+      }
+      console.error("Error updating user:", error);
+      res.status(500).json({ message: "Erro interno do servidor" });
+    }
+  });
+
+  app.delete("/api/admin/users/:id", async (req, res) => {
+    if (!req.isAuthenticated() || req.user!.role !== "admin") {
+      return res.status(403).json({ message: "Acesso negado - Apenas administradores" });
+    }
+
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "ID inválido" });
+      }
+
+      // Prevent self-deletion
+      if (id === req.user!.id) {
+        return res.status(400).json({ message: "Você não pode excluir sua própria conta" });
+      }
+
+      const deleted = await storage.deleteUserById(id);
+
+      if (!deleted) {
+        return res.status(404).json({ message: "Usuário não encontrado" });
+      }
+
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting user:", error);
       res.status(500).json({ message: "Erro interno do servidor" });
     }
   });

@@ -17,7 +17,7 @@ import {
   type InsertEmailConfiguration
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, or, ilike, desc, and } from "drizzle-orm";
+import { eq, or, ilike, desc, and, ne } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
@@ -27,6 +27,12 @@ const PostgresSessionStore = connectPg(session);
 export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  // User management methods
+  getAllUsers(excludeUserId?: number): Promise<User[]>;
+  createUserByAdmin(userData: InsertAdminUser & { password: string }): Promise<User>;
+  updateUserByAdmin(id: number, userData: Partial<InsertAdminUser>): Promise<User | null>;
+  deleteUserById(id: number): Promise<boolean>;
+
   createUser(user: InsertUser): Promise<User>;
   getClients(userId: number, search?: string): Promise<Client[]>;
   getClient(id: number, userId: number): Promise<Client | undefined>;
@@ -47,7 +53,11 @@ export interface IStorage {
   updateEmailConfiguration(id: number, userId: number, config: Partial<InsertEmailConfiguration>): Promise<EmailConfiguration | null>;
   deleteEmailConfiguration(id: number, userId: number): Promise<boolean>;
 
-  sessionStore: session.Store;
+  updateUser(id: number, updates: Partial<InsertUser>): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  setPasswordResetToken(userId: number, token: string, expiry: Date): Promise<User | undefined>;
+  getUserByResetToken(token: string): Promise<User | undefined>;
+  clearPasswordResetToken(userId: number): Promise<User | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -71,10 +81,48 @@ export class DatabaseStorage implements IStorage {
     return user || undefined;
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
+  // User management methods
+  async getAllUsers(excludeUserId?: number): Promise<User[]> {
+    const query = this.db.select().from(users);
+    if (excludeUserId) {
+      return query.where(ne(users.id, excludeUserId));
+    }
+    return query;
+  }
+
+  async createUserByAdmin(userData: InsertAdminUser & { password: string }): Promise<User> {
+    const [user] = await this.db.insert(users).values({
+      ...userData,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }).returning();
+    return user;
+  }
+
+  async updateUserByAdmin(id: number, userData: Partial<InsertAdminUser>): Promise<User | null> {
+    const [user] = await this.db.update(users)
+      .set({ ...userData, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return user || null;
+  }
+
+  async deleteUserById(id: number): Promise<boolean> {
+    // First, delete all related data
+    await this.db.delete(clients).where(eq(clients.userId, id));
+    await this.db.delete(campaigns).where(eq(campaigns.userId, id));
+    await this.db.delete(emailConfigurations).where(eq(emailConfigurations.userId, id));
+
+    // Then delete the user
+    const result = await this.db.delete(users).where(eq(users.id, id));
+    return result.rowCount > 0;
+  }
+
+  // User methods
+  async createUser(userData: InsertUser): Promise<User> {
     const [user] = await this.db
       .insert(users)
-      .values(insertUser)
+      .values(userData)
       .returning();
     return user;
   }
@@ -214,34 +262,38 @@ export class DatabaseStorage implements IStorage {
   }
 
 
-  async updateUser(id: number, updates: Partial<InsertUser>) {
-    return this.db.update(users).set(updates).where(eq(users.id, id)).returning().then(rows => rows[0]);
+  async updateUser(id: number, updates: Partial<InsertUser>): Promise<User | undefined> {
+    const [user] = await this.db.update(users).set(updates).where(eq(users.id, id)).returning();
+    return user;
   }
 
   async getUserByEmail(email: string) {
-    return this.db.select().from(users).where(eq(users.email, email)).then(rows => rows[0]);
+    const [user] = await this.db.select().from(users).where(eq(users.email, email));
+    return user;
   }
 
   async setPasswordResetToken(userId: number, token: string, expiry: Date) {
-    return this.db.update(users)
+    const [user] = await this.db
+      .update(users)
       .set({ resetToken: token, resetTokenExpiry: expiry })
       .where(eq(users.id, userId))
-      .returning()
-      .then(rows => rows[0]);
+      .returning();
+    return user;
   }
 
   async getUserByResetToken(token: string) {
-    return this.db.select().from(users)
-      .where(eq(users.resetToken, token))
-      .then(rows => rows[0]);
+    const [user] = await this.db.select().from(users)
+      .where(eq(users.resetToken, token));
+    return user;
   }
 
   async clearPasswordResetToken(userId: number) {
-    return this.db.update(users)
+    const [user] = await this.db
+      .update(users)
       .set({ resetToken: null, resetTokenExpiry: null })
       .where(eq(users.id, userId))
-      .returning()
-      .then(rows => rows[0]);
+      .returning();
+    return user;
   }
 }
 

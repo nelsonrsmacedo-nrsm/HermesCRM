@@ -8,6 +8,7 @@ import { ProtectedRoute } from "./lib/protected-route";
 import HomePage from "@/pages/home-page";
 import MalaDiretaPage from "@/pages/mala-direta-page";
 import EmailConfigPage from "@/pages/email-config-page";
+import UserManagementPage from "@/pages/user-management-page";
 import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
 import ResetPasswordPage from "@/pages/reset-password-page";
@@ -20,6 +21,7 @@ function Router() {
       <Route path="/auth" component={AuthPage} />
       <Route path="/reset-password" component={ResetPasswordPage} />
       <ProtectedRoute path="/email-config" component={EmailConfigPage} />
+      <ProtectedRoute path="/users" component={UserManagementPage} />
       <Route path="*" component={NotFound} />
     </Switch>
   );
