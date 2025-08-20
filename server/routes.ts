@@ -355,7 +355,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Nome de usuário ou email já existe" });
       }
 
-      const { hashPassword } = require("./auth");
+      const { hashPassword } = await import("./auth");
       const hashedPassword = await hashPassword(validatedData.password);
 
       const user = await storage.createUserByAdmin({
@@ -398,7 +398,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // If password is being updated, hash it
       if (updateData.password) {
-        const { hashPassword } = require("./auth");
+        const { hashPassword } = await import("./auth");
         updateData.password = await hashPassword(updateData.password);
       }
 

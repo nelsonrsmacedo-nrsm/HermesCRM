@@ -16,7 +16,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertAdminUserSchema, type User, type InsertAdminUser } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { Users, Plus, Edit, Trash2, Search, UserCheck, UserX, Shield, User as UserIcon } from "lucide-react";
+import { Users, Plus, Edit, Trash2, Search, UserCheck, UserX, Shield, User as UserIcon, ArrowLeft } from "lucide-react";
+import { Link } from "wouter";
 import { z } from "zod";
 
 type UserWithoutPassword = Omit<User, 'password'>;
@@ -239,6 +240,14 @@ export default function UserManagementPage() {
     <div className="container mx-auto py-8">
       <div className="flex items-center justify-between mb-8">
         <div>
+          <div className="flex items-center gap-4 mb-4">
+            <Link href="/">
+              <Button variant="ghost" size="sm" className="flex items-center gap-2">
+                <ArrowLeft className="h-4 w-4" />
+                Voltar aos Clientes
+              </Button>
+            </Link>
+          </div>
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
             <Users className="h-8 w-8" />
             Gerenciamento de Usuários
