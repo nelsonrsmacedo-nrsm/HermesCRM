@@ -12,6 +12,9 @@ export const users = pgTable("users", {
   status: text("status").notNull().default("active"), // active, inactive
   resetToken: text("reset_token"),
   resetTokenExpiry: timestamp("reset_token_expiry"),
+  // Permissions
+  canAccessMaladireta: boolean("can_access_maladireta").notNull().default(true),
+  canAccessEmailConfig: boolean("can_access_email_config").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -90,6 +93,8 @@ export const insertAdminUserSchema = createInsertSchema(users).omit({
   password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
   role: z.enum(["admin", "user"]).default("user"),
   status: z.enum(["active", "inactive"]).default("active"),
+  canAccessMaladireta: z.boolean().default(true),
+  canAccessEmailConfig: z.boolean().default(true),
 });
 
 export const insertClientSchema = createInsertSchema(clients).omit({

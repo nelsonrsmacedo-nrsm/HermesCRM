@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertAdminUserSchema, type User, type InsertAdminUser } from "@shared/schema";
@@ -85,6 +86,8 @@ export default function UserManagementPage() {
       confirmPassword: "",
       role: "user",
       status: "active",
+      canAccessMaladireta: true,
+      canAccessEmailConfig: true,
     },
   });
 
@@ -98,6 +101,8 @@ export default function UserManagementPage() {
       confirmPassword: "",
       role: "user",
       status: "active",
+      canAccessMaladireta: true,
+      canAccessEmailConfig: true,
     },
   });
 
@@ -200,6 +205,8 @@ export default function UserManagementPage() {
       status: user.status as "active" | "inactive",
       password: "",
       confirmPassword: "",
+      canAccessMaladireta: user.canAccessMaladireta,
+      canAccessEmailConfig: user.canAccessEmailConfig,
     });
     setIsEditDialogOpen(true);
   };
@@ -366,6 +373,58 @@ export default function UserManagementPage() {
                     </FormItem>
                   )}
                 />
+                
+                {/* Permissions */}
+                <div className="space-y-3">
+                  <FormLabel className="text-base">Permissões</FormLabel>
+                  <FormField
+                    control={createForm.control}
+                    name="canAccessMaladireta"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            data-testid="checkbox-create-maladireta"
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel>
+                            Acesso à Mala Direta
+                          </FormLabel>
+                          <p className="text-sm text-muted-foreground">
+                            Permite acesso às funcionalidades de mala direta
+                          </p>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={createForm.control}
+                    name="canAccessEmailConfig"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            data-testid="checkbox-create-email-config"
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel>
+                            Acesso à Configuração de Email
+                          </FormLabel>
+                          <p className="text-sm text-muted-foreground">
+                            Permite acesso às configurações de email
+                          </p>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
                 <DialogFooter>
                   <Button
                     type="submit"
@@ -593,6 +652,58 @@ export default function UserManagementPage() {
                   </FormItem>
                 )}
               />
+              
+              {/* Permissions */}
+              <div className="space-y-3">
+                <FormLabel className="text-base">Permissões</FormLabel>
+                <FormField
+                  control={updateForm.control}
+                  name="canAccessMaladireta"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          data-testid="checkbox-edit-maladireta"
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>
+                          Acesso à Mala Direta
+                        </FormLabel>
+                        <p className="text-sm text-muted-foreground">
+                          Permite acesso às funcionalidades de mala direta
+                        </p>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={updateForm.control}
+                  name="canAccessEmailConfig"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          data-testid="checkbox-edit-email-config"
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>
+                          Acesso à Configuração de Email
+                        </FormLabel>
+                        <p className="text-sm text-muted-foreground">
+                          Permite acesso às configurações de email
+                        </p>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
               <DialogFooter>
                 <Button
                   type="submit"
