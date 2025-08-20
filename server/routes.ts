@@ -271,7 +271,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           user: emailConfig.smtpUser,
           pass: emailConfig.smtpPass,
         },
-      });
+      } as any);
 
       const resetUrl = `${req.protocol}://${req.get("host")}/reset-password?token=${resetToken}`;
 

@@ -1,78 +1,117 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Checkbox } from "@/components/ui/checkbox";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertAdminUserSchema, type User, type InsertAdminUser } from "@shared/schema";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/use-auth";
-import { Users, Plus, Edit, Trash2, Search, UserCheck, UserX, Shield, User as UserIcon, ArrowLeft } from "lucide-react";
-import { Link } from "wouter";
 import { z } from "zod";
+import { Link } from "wouter";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { insertUserSchema, User as SelectUser } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Users,
+  Plus,
+  Search,
+  MoreHorizontal,
+  Edit,
+  Trash2,
+  UserCheck,
+  UserX,
+  Shield,
+  User as UserIcon,
+  ArrowLeft,
+  Mail,
+  Send,
+} from "lucide-react";
 
-type UserWithoutPassword = Omit<User, 'password'>;
+// Form schemas
+const createUserFormSchema = insertUserSchema
+  .omit({ id: true, createdAt: true })
+  .extend({
+    confirmPassword: z.string().min(6, "A confirmação de senha deve ter pelo menos 6 caracteres"),
+    canAccessMaladireta: z.boolean().default(false),
+    canAccessEmailConfig: z.boolean().default(false),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "As senhas não coincidem",
+    path: ["confirmPassword"],
+  });
 
-const createUserFormSchema = insertAdminUserSchema.extend({
-  confirmPassword: z.string().min(6, "Confirmação de senha deve ter pelo menos 6 caracteres"),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Senhas não coincidem",
-  path: ["confirmPassword"],
-});
-
-const updateUserFormSchema = insertAdminUserSchema.partial().extend({
-  password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres").optional().or(z.literal("")),
-  confirmPassword: z.string().optional(),
-}).refine((data) => {
-  if (data.password && data.password !== "") {
-    return data.password === data.confirmPassword;
-  }
-  return true;
-}, {
-  message: "Senhas não coincidem",
-  path: ["confirmPassword"],
+const editUserFormSchema = z.object({
+  username: z.string().min(3, "Nome de usuário deve ter pelo menos 3 caracteres"),
+  email: z.string().email("Email inválido"),
+  role: z.enum(["admin", "user"]),
+  status: z.enum(["active", "inactive"]),
+  canAccessMaladireta: z.boolean().default(false),
+  canAccessEmailConfig: z.boolean().default(false),
 });
 
 type CreateUserFormData = z.infer<typeof createUserFormSchema>;
-type UpdateUserFormData = z.infer<typeof updateUserFormSchema>;
+type EditUserFormData = z.infer<typeof editUserFormSchema>;
 
 export default function UserManagementPage() {
-  const { user: currentUser } = useAuth();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<UserWithoutPassword | null>(null);
-
-  // Check if current user is admin
-  if (!currentUser || currentUser.role !== "admin") {
-    return (
-      <div className="container mx-auto py-8">
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <Shield className="h-16 w-16 text-muted-foreground mb-4" />
-            <h2 className="text-2xl font-semibold mb-2">Acesso Negado</h2>
-            <p className="text-muted-foreground text-center">
-              Você precisa ter privilégios de administrador para acessar esta página.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  const [editingUser, setEditingUser] = useState<SelectUser | null>(null);
 
   // Fetch users
-  const { data: users = [], isLoading } = useQuery<UserWithoutPassword[]>({
+  const { data: users = [], isLoading } = useQuery<SelectUser[]>({
     queryKey: ["/api/admin/users"],
   });
 
@@ -86,31 +125,28 @@ export default function UserManagementPage() {
       confirmPassword: "",
       role: "user",
       status: "active",
-      canAccessMaladireta: true,
-      canAccessEmailConfig: true,
+      canAccessMaladireta: false,
+      canAccessEmailConfig: false,
     },
   });
 
-  // Update user form
-  const updateForm = useForm<UpdateUserFormData>({
-    resolver: zodResolver(updateUserFormSchema),
+  // Edit user form
+  const editForm = useForm<EditUserFormData>({
+    resolver: zodResolver(editUserFormSchema),
     defaultValues: {
       username: "",
       email: "",
-      password: "",
-      confirmPassword: "",
       role: "user",
       status: "active",
-      canAccessMaladireta: true,
-      canAccessEmailConfig: true,
+      canAccessMaladireta: false,
+      canAccessEmailConfig: false,
     },
   });
 
-  // Mutations
+  // Create user mutation
   const createUserMutation = useMutation({
     mutationFn: async (userData: CreateUserFormData) => {
-      const { confirmPassword, ...data } = userData;
-      const res = await apiRequest("POST", "/api/admin/users", data);
+      const res = await apiRequest("POST", "/api/admin/users", userData);
       return await res.json();
     },
     onSuccess: () => {
@@ -118,128 +154,127 @@ export default function UserManagementPage() {
       setIsCreateDialogOpen(false);
       createForm.reset();
       toast({
-        title: "Usuário criado com sucesso",
-        description: "O novo usuário foi adicionado ao sistema.",
+        title: "Usuário criado",
+        description: "O usuário foi criado com sucesso.",
       });
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
       toast({
         title: "Erro ao criar usuário",
-        description: error.message,
+        description: error.message || "Ocorreu um erro ao criar o usuário.",
         variant: "destructive",
       });
     },
   });
 
+  // Update user mutation
   const updateUserMutation = useMutation({
-    mutationFn: async ({ id, userData }: { id: number; userData: UpdateUserFormData }) => {
-      const { confirmPassword, ...data } = userData;
-      // Remove empty password
-      if (data.password === "") {
-        delete data.password;
-      }
-      const res = await apiRequest("PUT", `/api/admin/users/${id}`, data);
+    mutationFn: async ({ id, userData }: { id: number; userData: EditUserFormData }) => {
+      const res = await apiRequest("PUT", `/api/admin/users/${id}`, userData);
       return await res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
-      setIsEditDialogOpen(false);
       setEditingUser(null);
-      updateForm.reset();
+      editForm.reset();
       toast({
-        title: "Usuário atualizado com sucesso",
-        description: "As informações do usuário foram atualizadas.",
+        title: "Usuário atualizado",
+        description: "O usuário foi atualizado com sucesso.",
       });
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
       toast({
         title: "Erro ao atualizar usuário",
-        description: error.message,
+        description: error.message || "Ocorreu um erro ao atualizar o usuário.",
         variant: "destructive",
       });
     },
   });
 
+  // Delete user mutation
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: number) => {
-      await apiRequest("DELETE", `/api/admin/users/${userId}`);
+      const res = await apiRequest("DELETE", `/api/admin/users/${userId}`);
+      return await res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
       toast({
-        title: "Usuário excluído com sucesso",
-        description: "O usuário foi removido do sistema.",
+        title: "Usuário excluído",
+        description: "O usuário foi excluído com sucesso.",
       });
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
       toast({
         title: "Erro ao excluir usuário",
-        description: error.message,
+        description: error.message || "Ocorreu um erro ao excluir o usuário.",
         variant: "destructive",
       });
     },
   });
 
+  // Clear all users mutation
   const clearAllUsersMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("DELETE", "/api/admin/users/clear-all");
       return await res.json();
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
       toast({
-        title: "Contas limpas com sucesso",
-        description: `${data.deletedCount || 0} usuários foram removidos do sistema.`,
+        title: "Contas removidas",
+        description: "Todas as contas de usuário foram removidas com sucesso.",
       });
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
       toast({
-        title: "Erro ao limpar contas",
-        description: error.message,
+        title: "Erro ao remover contas",
+        description: error.message || "Ocorreu um erro ao remover as contas.",
         variant: "destructive",
       });
     },
   });
 
   // Filter users based on search term
-  const filteredUsers = users.filter(user =>
-    user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredUsers = useMemo(() => {
+    if (!searchTerm) return users;
+    return users.filter(
+      (user) =>
+        user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [users, searchTerm]);
 
+  // Handle create user
   const handleCreateUser = (data: CreateUserFormData) => {
     createUserMutation.mutate(data);
   };
 
-  const handleUpdateUser = (data: UpdateUserFormData) => {
-    if (editingUser) {
-      updateUserMutation.mutate({ id: editingUser.id, userData: data });
-    }
+  // Handle edit user
+  const handleEditUser = (data: EditUserFormData) => {
+    if (!editingUser) return;
+    updateUserMutation.mutate({ id: editingUser.id, userData: data });
   };
 
-  const handleEditUser = (user: UserWithoutPassword) => {
-    setEditingUser(user);
-    updateForm.reset({
-      username: user.username,
-      email: user.email,
-      role: user.role as "admin" | "user",
-      status: user.status as "active" | "inactive",
-      password: "",
-      confirmPassword: "",
-      canAccessMaladireta: user.canAccessMaladireta,
-      canAccessEmailConfig: user.canAccessEmailConfig,
-    });
-    setIsEditDialogOpen(true);
-  };
-
-  const handleDeleteUser = (userId: number) => {
-    deleteUserMutation.mutate(userId);
-  };
-
+  // Handle clear all users
   const handleClearAllUsers = () => {
     clearAllUsersMutation.mutate();
   };
 
+  // Open edit dialog with user data
+  const openEditDialog = (user: SelectUser) => {
+    setEditingUser(user);
+    editForm.reset({
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      status: user.status,
+      canAccessMaladireta: user.canAccessMaladireta,
+      canAccessEmailConfig: user.canAccessEmailConfig,
+    });
+  };
+
+  // Helper functions for badges
   const getRoleBadge = (role: string) => {
     return role === "admin" ? (
       <Badge variant="destructive" className="gap-1">
@@ -302,7 +337,7 @@ export default function UserManagementPage() {
                 <AlertDialogDescription>
                   Tem certeza que deseja remover TODAS as contas de usuário do sistema?
                   Apenas sua conta de administrador será mantida. Esta ação não pode ser desfeita
-                  e todos os dados dos usuários (clientes, campanhas, configurações) serão 
+                  e todos os dados dos usuários (clientes, campanhas, configurações) serão
                   permanentemente removidos.
                 </AlertDialogDescription>
               </AlertDialogHeader>
@@ -321,180 +356,180 @@ export default function UserManagementPage() {
           
           <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
             <DialogTrigger asChild>
-              <Button data-testid="button-create-user">
-                <Plus className="h-4 w-4 mr-2" />
+              <Button className="flex items-center gap-2" data-testid="button-create-user">
+                <Plus className="h-4 w-4" />
                 Novo Usuário
               </Button>
             </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Criar Novo Usuário</DialogTitle>
+                <DialogDescription>
+                  Preencha os dados do novo usuário abaixo.
+                </DialogDescription>
+              </DialogHeader>
+              <Form {...createForm}>
+                <form onSubmit={createForm.handleSubmit(handleCreateUser)} className="space-y-4">
+                  <FormField
+                    control={createForm.control}
+                    name="username"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nome de Usuário</FormLabel>
+                        <FormControl>
+                          <Input {...field} data-testid="input-create-username" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={createForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input type="email" {...field} data-testid="input-create-email" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={createForm.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Senha</FormLabel>
+                        <FormControl>
+                          <Input type="password" {...field} data-testid="input-create-password" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={createForm.control}
+                    name="confirmPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Confirmar Senha</FormLabel>
+                        <FormControl>
+                          <Input type="password" {...field} data-testid="input-create-confirm-password" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={createForm.control}
+                    name="role"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Papel</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-create-role">
+                              <SelectValue placeholder="Selecione o papel" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="user">Usuário</SelectItem>
+                            <SelectItem value="admin">Administrador</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={createForm.control}
+                    name="status"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Status</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-create-status">
+                              <SelectValue placeholder="Selecione o status" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="active">Ativo</SelectItem>
+                            <SelectItem value="inactive">Inativo</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  {/* Permissions */}
+                  <div className="space-y-3">
+                    <FormLabel className="text-base">Permissões</FormLabel>
+                    <FormField
+                      control={createForm.control}
+                      name="canAccessMaladireta"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                              data-testid="checkbox-create-maladireta"
+                            />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
+                            <FormLabel>
+                              Acesso à Mala Direta
+                            </FormLabel>
+                            <p className="text-sm text-muted-foreground">
+                              Permite acesso às funcionalidades de mala direta
+                            </p>
+                          </div>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={createForm.control}
+                      name="canAccessEmailConfig"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                              data-testid="checkbox-create-email-config"
+                            />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
+                            <FormLabel>
+                              Acesso à Configuração de Email
+                            </FormLabel>
+                            <p className="text-sm text-muted-foreground">
+                              Permite acesso às configurações de email
+                            </p>
+                          </div>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  
+                  <DialogFooter>
+                    <Button
+                      type="submit"
+                      disabled={createUserMutation.isPending}
+                      data-testid="button-submit-create"
+                    >
+                      {createUserMutation.isPending ? "Criando..." : "Criar Usuário"}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
         </div>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Criar Novo Usuário</DialogTitle>
-              <DialogDescription>
-                Adicione um novo usuário ao sistema com as informações abaixo.
-              </DialogDescription>
-            </DialogHeader>
-            <Form {...createForm}>
-              <form onSubmit={createForm.handleSubmit(handleCreateUser)} className="space-y-4">
-                <FormField
-                  control={createForm.control}
-                  name="username"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nome de Usuário</FormLabel>
-                      <FormControl>
-                        <Input {...field} data-testid="input-create-username" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={createForm.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input type="email" {...field} data-testid="input-create-email" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={createForm.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Senha</FormLabel>
-                      <FormControl>
-                        <Input type="password" {...field} data-testid="input-create-password" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={createForm.control}
-                  name="confirmPassword"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Confirmar Senha</FormLabel>
-                      <FormControl>
-                        <Input type="password" {...field} data-testid="input-create-confirm-password" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={createForm.control}
-                  name="role"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Papel</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger data-testid="select-create-role">
-                            <SelectValue placeholder="Selecione o papel" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="user">Usuário</SelectItem>
-                          <SelectItem value="admin">Administrador</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={createForm.control}
-                  name="status"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Status</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger data-testid="select-create-status">
-                            <SelectValue placeholder="Selecione o status" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="active">Ativo</SelectItem>
-                          <SelectItem value="inactive">Inativo</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                {/* Permissions */}
-                <div className="space-y-3">
-                  <FormLabel className="text-base">Permissões</FormLabel>
-                  <FormField
-                    control={createForm.control}
-                    name="canAccessMaladireta"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                            data-testid="checkbox-create-maladireta"
-                          />
-                        </FormControl>
-                        <div className="space-y-1 leading-none">
-                          <FormLabel>
-                            Acesso à Mala Direta
-                          </FormLabel>
-                          <p className="text-sm text-muted-foreground">
-                            Permite acesso às funcionalidades de mala direta
-                          </p>
-                        </div>
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={createForm.control}
-                    name="canAccessEmailConfig"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                            data-testid="checkbox-create-email-config"
-                          />
-                        </FormControl>
-                        <div className="space-y-1 leading-none">
-                          <FormLabel>
-                            Acesso à Configuração de Email
-                          </FormLabel>
-                          <p className="text-sm text-muted-foreground">
-                            Permite acesso às configurações de email
-                          </p>
-                        </div>
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                
-                <DialogFooter>
-                  <Button
-                    type="submit"
-                    disabled={createUserMutation.isPending}
-                    data-testid="button-submit-create"
-                  >
-                    {createUserMutation.isPending ? "Criando..." : "Criar Usuário"}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
       </div>
 
       <Card>
@@ -527,73 +562,72 @@ export default function UserManagementPage() {
                   <TableHead>Email</TableHead>
                   <TableHead>Papel</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Criado em</TableHead>
+                  <TableHead>Permissões</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredUsers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
-                      <div className="text-muted-foreground">
-                        {searchTerm ? "Nenhum usuário encontrado com os critérios de busca." : "Nenhum usuário encontrado."}
-                      </div>
+                    <TableCell colSpan={6} className="h-24 text-center">
+                      Nenhum usuário encontrado.
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredUsers.map((user) => (
-                    <TableRow key={user.id} data-testid={`row-user-${user.id}`}>
+                    <TableRow key={user.id}>
                       <TableCell className="font-medium">{user.username}</TableCell>
                       <TableCell>{user.email}</TableCell>
                       <TableCell>{getRoleBadge(user.role)}</TableCell>
                       <TableCell>{getStatusBadge(user.status)}</TableCell>
                       <TableCell>
-                        {new Date(user.createdAt).toLocaleDateString('pt-BR')}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEditUser(user)}
-                            data-testid={`button-edit-${user.id}`}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          {user.id !== currentUser.id && (
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  data-testid={`button-delete-${user.id}`}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Tem certeza que deseja excluir o usuário {user.username}? 
-                                    Esta ação não pode ser desfeita e todos os dados associados 
-                                    (clientes, campanhas) serão permanentemente removidos.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handleDeleteUser(user.id)}
-                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                    data-testid={`button-confirm-delete-${user.id}`}
-                                  >
-                                    Excluir
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                        <div className="flex gap-1">
+                          {user.canAccessMaladireta && (
+                            <Badge variant="outline" className="text-xs">
+                              <Send className="h-3 w-3 mr-1" />
+                              Mala Direta
+                            </Badge>
+                          )}
+                          {user.canAccessEmailConfig && (
+                            <Badge variant="outline" className="text-xs">
+                              <Mail className="h-3 w-3 mr-1" />
+                              Email Config
+                            </Badge>
                           )}
                         </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              className="h-8 w-8 p-0"
+                              data-testid={`button-actions-${user.id}`}
+                            >
+                              <span className="sr-only">Abrir menu</span>
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                            <DropdownMenuItem
+                              onClick={() => openEditDialog(user)}
+                              data-testid={`button-edit-${user.id}`}
+                            >
+                              <Edit className="h-4 w-4 mr-2" />
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => deleteUserMutation.mutate(user.id)}
+                              className="text-destructive"
+                              data-testid={`button-delete-${user.id}`}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))
@@ -605,7 +639,7 @@ export default function UserManagementPage() {
       </Card>
 
       {/* Edit User Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+      <Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Editar Usuário</DialogTitle>
@@ -613,10 +647,10 @@ export default function UserManagementPage() {
               Atualize as informações do usuário abaixo.
             </DialogDescription>
           </DialogHeader>
-          <Form {...updateForm}>
-            <form onSubmit={updateForm.handleSubmit(handleUpdateUser)} className="space-y-4">
+          <Form {...editForm}>
+            <form onSubmit={editForm.handleSubmit(handleEditUser)} className="space-y-4">
               <FormField
-                control={updateForm.control}
+                control={editForm.control}
                 name="username"
                 render={({ field }) => (
                   <FormItem>
@@ -629,7 +663,7 @@ export default function UserManagementPage() {
                 )}
               />
               <FormField
-                control={updateForm.control}
+                control={editForm.control}
                 name="email"
                 render={({ field }) => (
                   <FormItem>
@@ -642,38 +676,12 @@ export default function UserManagementPage() {
                 )}
               />
               <FormField
-                control={updateForm.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nova Senha (deixe em branco para manter a atual)</FormLabel>
-                    <FormControl>
-                      <Input type="password" {...field} data-testid="input-edit-password" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={updateForm.control}
-                name="confirmPassword"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Confirmar Nova Senha</FormLabel>
-                    <FormControl>
-                      <Input type="password" {...field} data-testid="input-edit-confirm-password" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={updateForm.control}
+                control={editForm.control}
                 name="role"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Papel</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger data-testid="select-edit-role">
                           <SelectValue placeholder="Selecione o papel" />
@@ -689,12 +697,12 @@ export default function UserManagementPage() {
                 )}
               />
               <FormField
-                control={updateForm.control}
+                control={editForm.control}
                 name="status"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Status</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger data-testid="select-edit-status">
                           <SelectValue placeholder="Selecione o status" />
@@ -714,7 +722,7 @@ export default function UserManagementPage() {
               <div className="space-y-3">
                 <FormLabel className="text-base">Permissões</FormLabel>
                 <FormField
-                  control={updateForm.control}
+                  control={editForm.control}
                   name="canAccessMaladireta"
                   render={({ field }) => (
                     <FormItem className="flex flex-row items-start space-x-3 space-y-0">
@@ -737,7 +745,7 @@ export default function UserManagementPage() {
                   )}
                 />
                 <FormField
-                  control={updateForm.control}
+                  control={editForm.control}
                   name="canAccessEmailConfig"
                   render={({ field }) => (
                     <FormItem className="flex flex-row items-start space-x-3 space-y-0">
