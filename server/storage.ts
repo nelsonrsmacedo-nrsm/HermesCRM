@@ -80,23 +80,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getClients(userId: number, search?: string): Promise<Client[]> {
-    let query = this.db.select().from(clients).where(eq(clients.userId, userId));
+    let baseQuery = this.db.select().from(clients).where(eq(clients.userId, userId));
 
     if (search) {
-      query = query.where(
-        or(
-          ilike(clients.name, `%${search}%`),
-          ilike(clients.email, `%${search}%`),
-          ilike(clients.cpfCnpj, `%${search}%`),
-          ilike(clients.mobilePhone, `%${search}%`),
-          ilike(clients.landlinePhone, `%${search}%`),
-          ilike(clients.city, `%${search}%`),
-          ilike(clients.businessArea, `%${search}%`)
-        )
+      const searchConditions = or(
+        ilike(clients.name, `%${search}%`),
+        ilike(clients.email, `%${search}%`),
+        ilike(clients.cpfCnpj, `%${search}%`),
+        ilike(clients.mobilePhone, `%${search}%`),
+        ilike(clients.landlinePhone, `%${search}%`),
+        ilike(clients.city, `%${search}%`),
+        ilike(clients.businessArea, `%${search}%`)
       );
+      baseQuery = this.db.select().from(clients).where(and(eq(clients.userId, userId), searchConditions));
     }
 
-    return query.orderBy(desc(clients.createdAt));
+    return baseQuery.orderBy(desc(clients.createdAt));
   }
 
   async getClient(id: number, userId: number): Promise<Client | undefined> {
@@ -211,7 +210,7 @@ export class DatabaseStorage implements IStorage {
       .delete(emailConfigurations)
       .where(and(eq(emailConfigurations.id, id), eq(emailConfigurations.userId, userId)));
 
-    return result.rowCount > 0;
+    return result.rowCount !== null && result.rowCount > 0;
   }
 
 

@@ -18,19 +18,9 @@ function Router() {
       <ProtectedRoute path="/" component={HomePage} />
       <ProtectedRoute path="/mala-direta" component={MalaDiretaPage} />
       <Route path="/auth" component={AuthPage} />
-      <Route
-            path="/reset-password"
-            element={<ResetPasswordPage />}
-          />
-          <Route
-            path="/email-config"
-            element={
-              <ProtectedRoute>
-                <EmailConfigPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route path="*" element={<NotFound />} />
+      <Route path="/reset-password" component={ResetPasswordPage} />
+      <ProtectedRoute path="/email-config" component={EmailConfigPage} />
+      <Route path="*" component={NotFound} />
     </Switch>
   );
 }
