@@ -22,6 +22,7 @@ import { eq, or, ilike, desc, and, ne } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
+import MemoryStore from "memorystore";
 
 const PostgresSessionStore = connectPg(session);
 
@@ -319,4 +320,349 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-export const storage = new DatabaseStorage();
+export class MemStorage implements IStorage {
+  private users = new Map<number, User>();
+  private clients = new Map<number, Client>();
+  private campaigns = new Map<number, Campaign>();
+  private emailConfigurations = new Map<number, EmailConfiguration>();
+  private nextUserId = 1;
+  private nextClientId = 1;
+  private nextCampaignId = 1;
+  private nextEmailConfigId = 1;
+  
+  sessionStore: session.Store;
+
+  constructor() {
+    // Use memory store for sessions instead of PostgreSQL
+    const MemoryStoreSession = MemoryStore(session);
+    this.sessionStore = new MemoryStoreSession({
+      checkPeriod: 86400000 // prune expired entries every 24h
+    });
+  }
+
+  async getUser(id: number): Promise<User | undefined> {
+    return this.users.get(id);
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    for (const user of Array.from(this.users.values())) {
+      if (user.username === username) return user;
+    }
+    return undefined;
+  }
+
+  async getAllUsers(excludeUserId?: number): Promise<User[]> {
+    const allUsers = Array.from(this.users.values());
+    if (excludeUserId) {
+      return allUsers.filter(user => user.id !== excludeUserId);
+    }
+    return allUsers;
+  }
+
+  async createUserByAdmin(userData: InsertAdminUser & { password: string }): Promise<User> {
+    const user: User = {
+      id: this.nextUserId++,
+      ...userData,
+      resetToken: null,
+      resetTokenExpiry: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.users.set(user.id, user);
+    return user;
+  }
+
+  async updateUserByAdmin(id: number, userData: Partial<InsertAdminUser>): Promise<User | null> {
+    const user = this.users.get(id);
+    if (!user) return null;
+    
+    const updatedUser = { ...user, ...userData, updatedAt: new Date() };
+    this.users.set(id, updatedUser);
+    return updatedUser;
+  }
+
+  async deleteUserById(id: number): Promise<boolean> {
+    // Delete related data first
+    for (const [clientId, client] of Array.from(this.clients.entries())) {
+      if (client.userId === id) {
+        this.clients.delete(clientId);
+      }
+    }
+    for (const [campaignId, campaign] of Array.from(this.campaigns.entries())) {
+      if (campaign.userId === id) {
+        this.campaigns.delete(campaignId);
+      }
+    }
+    for (const [configId, config] of Array.from(this.emailConfigurations.entries())) {
+      if (config.userId === id) {
+        this.emailConfigurations.delete(configId);
+      }
+    }
+    
+    return this.users.delete(id);
+  }
+
+  async deleteAllUsersExceptAdmin(adminId: number): Promise<number> {
+    const usersToDelete = Array.from(this.users.keys()).filter(id => id !== adminId);
+    
+    for (const userId of usersToDelete) {
+      await this.deleteUserById(userId);
+    }
+    
+    return usersToDelete.length;
+  }
+
+  async createUser(userData: InsertUser): Promise<User> {
+    const user: User = {
+      id: this.nextUserId++,
+      ...userData,
+      role: "user",
+      status: "active",
+      canAccessMaladireta: true,
+      canAccessEmailConfig: true,
+      resetToken: null,
+      resetTokenExpiry: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.users.set(user.id, user);
+    return user;
+  }
+
+  async getClients(userId: number, search?: string): Promise<Client[]> {
+    let userClients = Array.from(this.clients.values()).filter(client => client.userId === userId);
+    
+    if (search) {
+      const searchTerm = search.toLowerCase();
+      userClients = userClients.filter(client => 
+        client.name.toLowerCase().includes(searchTerm) ||
+        client.email.toLowerCase().includes(searchTerm) ||
+        (client.cpfCnpj && client.cpfCnpj.toLowerCase().includes(searchTerm)) ||
+        (client.mobilePhone && client.mobilePhone.includes(searchTerm)) ||
+        (client.landlinePhone && client.landlinePhone.includes(searchTerm)) ||
+        (client.city && client.city.toLowerCase().includes(searchTerm)) ||
+        (client.businessArea && client.businessArea.toLowerCase().includes(searchTerm))
+      );
+    }
+    
+    return userClients.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async getClient(id: number, userId: number): Promise<Client | undefined> {
+    const client = this.clients.get(id);
+    return client && client.userId === userId ? client : undefined;
+  }
+
+  async createClient(clientData: InsertClient & { userId: number }): Promise<Client> {
+    const client: Client = {
+      id: this.nextClientId++,
+      ...clientData,
+      // Convert undefined to null for required schema compatibility
+      number: clientData.number ?? null,
+      cpfCnpj: clientData.cpfCnpj ?? null,
+      rgIe: clientData.rgIe ?? null,
+      birthDate: clientData.birthDate ?? null,
+      gender: clientData.gender ?? null,
+      landlinePhone: clientData.landlinePhone ?? null,
+      mobilePhone: clientData.mobilePhone ?? null,
+      website: clientData.website ?? null,
+      zipCode: clientData.zipCode ?? null,
+      street: clientData.street ?? null,
+      complement: clientData.complement ?? null,
+      neighborhood: clientData.neighborhood ?? null,
+      city: clientData.city ?? null,
+      state: clientData.state ?? null,
+      country: clientData.country ?? "Brasil",
+      contactName: clientData.contactName ?? null,
+      contactPosition: clientData.contactPosition ?? null,
+      contactPhone: clientData.contactPhone ?? null,
+      contactEmail: clientData.contactEmail ?? null,
+      businessArea: clientData.businessArea ?? null,
+      classification: clientData.classification ?? "potencial",
+      clientOrigin: clientData.clientOrigin ?? null,
+      status: clientData.status ?? "ativo",
+      notes: clientData.notes ?? null,
+      preferences: clientData.preferences ?? null,
+      serviceHistory: clientData.serviceHistory ?? null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.clients.set(client.id, client);
+    return client;
+  }
+
+  async updateClient(id: number, userId: number, clientData: Partial<InsertClient>): Promise<Client | undefined> {
+    const client = this.clients.get(id);
+    if (!client || client.userId !== userId) return undefined;
+    
+    const updatedClient = { ...client, ...clientData, updatedAt: new Date() };
+    this.clients.set(id, updatedClient);
+    return updatedClient;
+  }
+
+  async deleteClient(id: number, userId: number): Promise<boolean> {
+    const client = this.clients.get(id);
+    if (!client || client.userId !== userId) return false;
+    
+    return this.clients.delete(id);
+  }
+
+  async getCampaigns(userId: number): Promise<Campaign[]> {
+    return Array.from(this.campaigns.values())
+      .filter(campaign => campaign.userId === userId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async getCampaign(id: number, userId: number): Promise<Campaign | undefined> {
+    const campaign = this.campaigns.get(id);
+    return campaign && campaign.userId === userId ? campaign : undefined;
+  }
+
+  async createCampaign(campaignData: InsertCampaign & { userId: number }): Promise<Campaign> {
+    const campaign: Campaign = {
+      id: this.nextCampaignId++,
+      ...campaignData,
+      subject: campaignData.subject ?? null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.campaigns.set(campaign.id, campaign);
+    return campaign;
+  }
+
+  async updateCampaign(id: number, userId: number, campaignData: Partial<InsertCampaign>): Promise<Campaign | undefined> {
+    const campaign = this.campaigns.get(id);
+    if (!campaign || campaign.userId !== userId) return undefined;
+    
+    const updatedCampaign = { ...campaign, ...campaignData, updatedAt: new Date() };
+    this.campaigns.set(id, updatedCampaign);
+    return updatedCampaign;
+  }
+
+  async deleteCampaign(id: number, userId: number): Promise<boolean> {
+    const campaign = this.campaigns.get(id);
+    if (!campaign || campaign.userId !== userId) return false;
+    
+    return this.campaigns.delete(id);
+  }
+
+  async getEmailConfiguration(userId: number): Promise<EmailConfiguration | null> {
+    for (const config of Array.from(this.emailConfigurations.values())) {
+      if (config.userId === userId && config.isActive) {
+        return config;
+      }
+    }
+    return null;
+  }
+
+  async createEmailConfiguration(configData: InsertEmailConfiguration & { userId: number }): Promise<EmailConfiguration> {
+    // Deactivate previous configurations
+    for (const [id, config] of Array.from(this.emailConfigurations.entries())) {
+      if (config.userId === configData.userId) {
+        this.emailConfigurations.set(id, { ...config, isActive: false });
+      }
+    }
+    
+    const config: EmailConfiguration = {
+      id: this.nextEmailConfigId++,
+      ...configData,
+      smtpSecure: configData.smtpSecure ?? false,
+      fromName: configData.fromName ?? null,
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.emailConfigurations.set(config.id, config);
+    return config;
+  }
+
+  async updateEmailConfiguration(id: number, userId: number, configData: Partial<InsertEmailConfiguration>): Promise<EmailConfiguration | null> {
+    const config = this.emailConfigurations.get(id);
+    if (!config || config.userId !== userId) return null;
+    
+    const updatedConfig = { ...config, ...configData, updatedAt: new Date() };
+    this.emailConfigurations.set(id, updatedConfig);
+    return updatedConfig;
+  }
+
+  async deleteEmailConfiguration(id: number, userId: number): Promise<boolean> {
+    const config = this.emailConfigurations.get(id);
+    if (!config || config.userId !== userId) return false;
+    
+    return this.emailConfigurations.delete(id);
+  }
+
+  async updateUser(id: number, updates: Partial<InsertUser>): Promise<User | undefined> {
+    const user = this.users.get(id);
+    if (!user) return undefined;
+    
+    const updatedUser = { ...user, ...updates, updatedAt: new Date() };
+    this.users.set(id, updatedUser);
+    return updatedUser;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    for (const user of Array.from(this.users.values())) {
+      if (user.email === email) return user;
+    }
+    return undefined;
+  }
+
+  async setPasswordResetToken(userId: number, token: string, expiry: Date): Promise<User | undefined> {
+    const user = this.users.get(userId);
+    if (!user) return undefined;
+    
+    const updatedUser = { ...user, resetToken: token, resetTokenExpiry: expiry, updatedAt: new Date() };
+    this.users.set(userId, updatedUser);
+    return updatedUser;
+  }
+
+  async getUserByResetToken(token: string): Promise<User | undefined> {
+    for (const user of Array.from(this.users.values())) {
+      if (user.resetToken === token) return user;
+    }
+    return undefined;
+  }
+
+  async clearPasswordResetToken(userId: number): Promise<User | undefined> {
+    const user = this.users.get(userId);
+    if (!user) return undefined;
+    
+    const updatedUser = { ...user, resetToken: null, resetTokenExpiry: null, updatedAt: new Date() };
+    this.users.set(userId, updatedUser);
+    return updatedUser;
+  }
+}
+
+// Use in-memory storage instead of database storage
+export const storage = new MemStorage();
+
+// Bootstrap admin user for development
+export async function bootstrapAdminUser() {
+  if (process.env.NODE_ENV !== "development") return;
+  
+  // Check if any admin users exist
+  const allUsers = await storage.getAllUsers();
+  const adminUsers = allUsers.filter(user => user.role === "admin");
+  
+  if (adminUsers.length === 0) {
+    console.log("No admin user found. Creating default admin user...");
+    
+    // Create default admin user (use a more secure password in real development)
+    const { hashPassword } = await import("./auth");
+    const hashedPassword = await hashPassword("admin123");
+    
+    const adminUser = await storage.createUserByAdmin({
+      username: "admin",
+      email: "admin@example.com",
+      password: hashedPassword,
+      role: "admin",
+      status: "active",
+      canAccessMaladireta: true,
+      canAccessEmailConfig: true,
+    });
+    
+    console.log(`Admin user created: ${adminUser.username} (ID: ${adminUser.id})`);
+    console.log("Login credentials: admin / admin123");
+  }
+}

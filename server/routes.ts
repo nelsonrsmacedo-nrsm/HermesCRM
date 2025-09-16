@@ -1,13 +1,16 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
-import { storage } from "./storage";
+import { storage, bootstrapAdminUser } from "./storage";
 import { insertClientSchema, insertCampaignSchema, insertAdminUserSchema, type InsertClient, type InsertCampaign, type InsertAdminUser } from "@shared/schema";
 import { z } from "zod";
 import nodemailer from "nodemailer";
 import { randomBytes } from "crypto";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Bootstrap admin user for development
+  await bootstrapAdminUser();
+  
   // sets up /api/register, /api/login, /api/logout, /api/user
   setupAuth(app);
 
