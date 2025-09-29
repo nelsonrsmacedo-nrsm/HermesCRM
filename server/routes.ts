@@ -408,6 +408,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const updateData = { ...req.body };
       
+      // Remove empty password fields to avoid updating with empty values
+      if (updateData.password === "" || updateData.password === undefined) {
+        delete updateData.password;
+      }
+      if (updateData.confirmPassword !== undefined) {
+        delete updateData.confirmPassword; // Remove confirmPassword as it's not stored
+      }
+      
       // If password is being updated, hash it
       if (updateData.password) {
         const { hashPassword } = await import("./auth");

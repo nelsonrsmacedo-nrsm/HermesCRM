@@ -96,6 +96,21 @@ const editUserFormSchema = z.object({
   status: z.enum(["active", "inactive"]),
   canAccessMaladireta: z.boolean().default(false),
   canAccessEmailConfig: z.boolean().default(false),
+  password: z.string().optional(),
+  confirmPassword: z.string().optional(),
+}).refine((data) => {
+  // Se senha foi fornecida, deve ter pelo menos 6 caracteres
+  if (data.password && data.password.length > 0 && data.password.length < 6) {
+    return false;
+  }
+  // Se senha foi fornecida, confirmação deve coincidir
+  if (data.password && data.password.length > 0) {
+    return data.password === data.confirmPassword;
+  }
+  return true;
+}, {
+  message: "As senhas não coincidem ou são muito curtas (mínimo 6 caracteres)",
+  path: ["confirmPassword"],
 });
 
 type CreateUserFormData = z.infer<typeof createUserFormSchema>;
@@ -137,6 +152,8 @@ export default function UserManagementPage() {
       status: "active" as const,
       canAccessMaladireta: false,
       canAccessEmailConfig: false,
+      password: "",
+      confirmPassword: "",
     },
   });
 
@@ -268,6 +285,8 @@ export default function UserManagementPage() {
       status: user.status as "active" | "inactive",
       canAccessMaladireta: user.canAccessMaladireta,
       canAccessEmailConfig: user.canAccessEmailConfig,
+      password: "",
+      confirmPassword: "",
     });
   };
 
@@ -761,6 +780,50 @@ export default function UserManagementPage() {
                           Permite acesso às configurações de email
                         </p>
                       </div>
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Password Change Section */}
+              <div className="space-y-3 border-t pt-4">
+                <FormLabel className="text-base">Alterar Senha (Opcional)</FormLabel>
+                <p className="text-sm text-muted-foreground">
+                  Deixe em branco para manter a senha atual
+                </p>
+                <FormField
+                  control={editForm.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nova Senha</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="password"
+                          placeholder="Digite a nova senha (opcional)"
+                          {...field}
+                          data-testid="input-edit-password"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={editForm.control}
+                  name="confirmPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Confirmar Nova Senha</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="password"
+                          placeholder="Confirme a nova senha"
+                          {...field}
+                          data-testid="input-edit-confirm-password"
+                        />
+                      </FormControl>
+                      <FormMessage />
                     </FormItem>
                   )}
                 />
